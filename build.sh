@@ -110,7 +110,15 @@ fi
 
 [ -n "${BUNDLED_SPDLOG_FMT}" ] && EXTRA_CMAKE_FLAGS="${EXTRA_CMAKE_FLAGS} -DUSE_SHARED_FMT_SPDLOG=''"
 
-[[ "$OSTYPE" == "darwin"* ]] && export PKG_CONFIG_PATH="/usr/local/opt/icu4c/lib/pkgconfig" && NO_TESTS="Y"
+if [[ "$OSTYPE" == "darwin"* ]]
+then
+  # Homebrew lives in /opt/homebrew on Apple Silicon and /usr/local on Intel; keep any caller-provided paths
+  BREW_PREFIX="$(brew --prefix 2>/dev/null || echo /usr/local)"
+  export PKG_CONFIG_PATH="${BREW_PREFIX}/opt/icu4c/lib/pkgconfig:${BREW_PREFIX}/opt/curl/lib/pkgconfig${PKG_CONFIG_PATH:+:${PKG_CONFIG_PATH}}"
+  # pkg-config yields bare -l flags; the linker needs the Homebrew lib dir to resolve them
+  export LIBRARY_PATH="${BREW_PREFIX}/lib${LIBRARY_PATH:+:${LIBRARY_PATH}}"
+  NO_TESTS="Y"
+fi
 
 if [ -n "${NO_TESTS}" ]
 then

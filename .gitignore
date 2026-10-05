@@ -16,3 +16,9 @@ build
 Screenshot_*.png
 .claude
 cmake_test_discovery_*.json
+
+# claude/mcp-server (Python)
+claude/mcp-server/.venv/
+claude/mcp-server/.pytest_cache/
+claude/mcp-server/.coverage
+claude/mcp-server/**/__pycache__/
