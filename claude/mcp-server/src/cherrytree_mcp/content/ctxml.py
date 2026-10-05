@@ -16,7 +16,7 @@ from ..errors import NotebookError
 from .model import Block, Codebox, Embedded, RichContent, Span, Table, make_attrs, normalize
 
 XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>\n'
-_INVALID_XML_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+_INVALID_XML_CHARS = re.compile("[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f\\ud800-\\udfff\\ufffe\\uffff]")
 
 
 class ContentFormatError(NotebookError):
@@ -63,6 +63,12 @@ class EncodedNode:
 
 def sanitize_text(text: str) -> str:
     return _INVALID_XML_CHARS.sub("", text)
+
+
+def _serialize(root: ET.Element) -> str:
+    # ElementTree writes \r raw, but XML parsers normalise raw \r(\n) to \n on load, which would
+    # shorten the text and shift every later widget offset; CherryTree itself stores &#13;
+    return XML_DECLARATION + ET.tostring(root, encoding="unicode").replace("\r", "&#13;")
 
 
 def _parse_xml(xml: str) -> ET.Element:
@@ -174,7 +180,7 @@ def _table_xml(table: Table) -> str:
         for column in range(width):
             cell = ET.SubElement(xml_row, "cell")
             cell.text = sanitize_text(row[column]) if column < len(row) else ""
-    return XML_DECLARATION + ET.tostring(root, encoding="unicode") + "\n"
+    return _serialize(root) + "\n"
 
 
 def _sanitized(content: RichContent) -> RichContent:
@@ -207,5 +213,5 @@ def encode(content: RichContent) -> EncodedNode:
                 ImageRow(position, block.justification, block.anchor, block.png, block.filename, block.link, block.time)
             )
         position += 1
-    xml = XML_DECLARATION + ET.tostring(root, encoding="unicode")
+    xml = _serialize(root)
     return EncodedNode(xml, tuple(codeboxes), tuple(grids), tuple(images))

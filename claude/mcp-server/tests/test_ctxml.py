@@ -131,3 +131,28 @@ def test_decode_appends_widgets_past_the_end_of_text():
 def test_decode_rejects_malformed_xml():
     with pytest.raises(ContentFormatError):
         decode("<node><rich_text>oops</node>", [], [], [])
+
+
+def test_carriage_returns_survive_so_later_widgets_keep_their_offsets():
+    # H1: CherryTree stores \r as &#13;; a raw \r would be normalised away by XML parsers
+    content = (Span("line1\r\nline2 "), Codebox("x"), Span("after"))
+
+    encoded = encode(content)
+    again = decode(encoded.xml, list(encoded.codeboxes), [], [])
+
+    assert "&#13;" in encoded.xml
+    assert again == content
+
+
+def test_carriage_returns_in_table_cells_survive():
+    table = Table((("a\r\nb", "c"),), col_widths="0,0")
+
+    grid = encode((table,)).grids[0]
+
+    assert decode(encode((table,)).xml, [], [grid], [])[0] == table
+
+
+def test_lone_surrogates_are_stripped():
+    encoded = encode((Span("ok\ud800done"),))
+
+    assert decode(encoded.xml, [], [], []) == (Span("okdone"),)

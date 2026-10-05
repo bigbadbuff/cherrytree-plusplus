@@ -137,7 +137,8 @@ def insert_after_line_plain(text: str, anchor_text: str, new_text: str) -> str:
     position = _line_end_after(text, anchor_text)
     if position is None:
         return f"{text}\n{new_text}"
-    return text[:position] + new_text + text[position:]
+    line = new_text if new_text.endswith("\n") else new_text + "\n"
+    return text[:position] + line + text[position:]
 
 
 def append_plain(text: str, new_text: str) -> str:

@@ -100,3 +100,8 @@ def test_plain_text_helpers():
     assert append_plain("x", "y\n") == "x\ny\n"
     with pytest.raises(EditError, match="not found"):
         replace_in_plain("abc", "q", "r", replace_all=False)
+
+
+def test_plain_insert_without_trailing_newline_does_not_merge_lines():
+    # H3
+    assert insert_after_line_plain("a\nb\nc", "a", "X") == "a\nX\nb\nc"

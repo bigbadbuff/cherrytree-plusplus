@@ -210,3 +210,51 @@ def test_to_markdown_escapes_text_that_would_change_meaning():
 )
 def test_markdown_round_trips_through_cherrytree(md):
     assert to_markdown(from_markdown(md)) == md
+
+
+# ------------------------------------------------------------- review regressions
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Intro\n\n    four spaces\n",
+        "\ttab indented\n",
+        "  two spaces\nnext\n",
+        "a\n      deep continuation\n",
+    ],
+)
+def test_leading_whitespace_round_trips_without_becoming_code(text):
+    # H2: indented lines must stay text (never code boxes) and keep their indentation
+    content = from_markdown(to_markdown((Span(text),)))
+
+    assert content == (Span(text),)
+
+
+def test_indented_line_keeps_its_embedded_image():
+    image = Embedded(png=b"PNG")
+    content = (Span("Intro\n\n    "), image, Span(" caption\n"))
+
+    assert from_markdown(to_markdown(content), existing_embedded=(image,)) == content
+
+
+def test_plain_line_after_a_list_is_not_absorbed_into_it():
+    # M6: lazy continuation lines must not gain list indentation
+    assert _text(from_markdown(to_markdown((Span("• milk\nNext\n"),)))) == "• milk\nNext\n"
+
+
+def test_plain_line_after_a_quote_is_not_quoted():
+    content = (Span("q", (("indent", "1"),)), Span("\nplain\n"))
+
+    assert from_markdown(to_markdown(content)) == content
+
+
+def test_indented_list_continuation_is_kept():
+    assert _text(from_markdown("- item\n  more of item")) == "• item\n   more of item\n"
+
+
+def test_code_fence_outgrows_indented_backtick_runs_inside():
+    # M7: a ``` run anywhere in the code (even indented) must not close the fence
+    codebox = Codebox("before\n   ```\nafter", "plain-text")
+
+    assert from_markdown(to_markdown((codebox,))) == (codebox, Span("\n"))
