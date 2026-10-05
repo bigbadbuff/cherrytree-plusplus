@@ -62,7 +62,7 @@ survives a full context window.
   palette gained an optional action-id filter, config `slash_command_menu`, preference checkbox).
   Unit tests in `tests/tests_slash_menu.cpp` (mutation-checked). **Not yet seen in the GUI**: the user
   declined screen access for CherryTree++, so ask them to try `/` on an empty line.
-- [ ] **Fix `fs::is_file_image` on macOS** (upstream bug, `ct_filesystem.cc`): `g_content_type_guess`
+- [x] **Fix `fs::is_file_image` on macOS** (upstream bug, `ct_filesystem.cc`; all 88 `run_tests_no_x` now pass): `g_content_type_guess`
   returns UTIs like `public.png` on macOS, so the `image/` check fails (upstream test
   `FileSystemGroup.is_file_image` fails here; pasting image files inserts them as attachments).
   Fix: compare `g_content_type_get_mime_type(content_type)`.
