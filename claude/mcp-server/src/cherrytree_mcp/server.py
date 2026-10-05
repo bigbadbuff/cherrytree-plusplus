@@ -157,7 +157,8 @@ def build_server(notebook: Notebook) -> MCPServer:
 
     @tool(CHANGE)
     def replace_content(page: PageArg, content: MarkdownArg) -> str:
-        """Rewrite a page's entire content. Formatting Markdown can't express is lost."""
+        """Rewrite a page's entire content. Formatting Markdown can't express is lost, and list markers,
+        numbering and divider lines are normalised to CherryTree's defaults; prefer targeted edits."""
         return notebook.replace_content(page, content).message
 
     @tool(ADD)

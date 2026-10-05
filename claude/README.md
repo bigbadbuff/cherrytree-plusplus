@@ -94,10 +94,11 @@ rewrites as long as the placeholder is kept.
 - While the app is open, new page ids skip 100 ahead, so they never collide with pages you created
   in the app but have not saved yet.
 - The notebook is snapshotted before the first write of every server session.
-- Remaining edge cases (being fixed in the app, see `HANDOFF.md`): if you are editing **the same
-  page** in CherryTree with unsaved changes when Claude edits it, saving in CherryTree keeps your
-  version; and if CherryTree autosaves in the few seconds between Claude's write and its reload
-  check, it may not show Claude's change until the next reload.
+- This repo's CherryTree build also reloads after its *own* save when the file changed on disk
+  meanwhile (stock CherryTree would keep a stale copy if it autosaved in the few seconds before its
+  reload check). Run the build from this repo to get that fix.
+- One inherent case remains: if you are editing **the same page** in CherryTree with unsaved
+  changes when Claude edits it, saving in CherryTree keeps your version of that page.
 
 ## Development
 

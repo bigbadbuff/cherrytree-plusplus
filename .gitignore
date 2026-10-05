@@ -22,3 +22,6 @@ claude/mcp-server/.venv/
 claude/mcp-server/.pytest_cache/
 claude/mcp-server/.coverage
 claude/mcp-server/**/__pycache__/
+
+# local C++ test build
+build-tests/
