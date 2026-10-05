@@ -37,7 +37,7 @@ const std::vector<std::string>& action_ids()
         "handle_table", "handle_codebox", "insert_horiz_rule",
         "handle_link", "handle_image", "handle_embfile", "handle_anchor",
         "insert_toc", "insert_timestamp", "handle_latex", "insert_special_char",
-        "tree_add_subnode",
+        "tree_add_subnode", "node_from_template",
     };
     return ids;
 }

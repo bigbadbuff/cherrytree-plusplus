@@ -95,6 +95,7 @@ package_add_test(run_tests_plusplus
   tests_external_update.cpp
   tests_slash_menu.cpp
   tests_backlinks.cpp
+  tests_templates.cpp
   ../src/ct/icons.gresource.cc
 )
 

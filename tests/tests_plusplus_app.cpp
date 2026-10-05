@@ -27,6 +27,8 @@
 
 namespace {
 
+constexpr int MAX_DRAIN_ITERATIONS = 200;
+
 class HiddenWindowApp : public CtApp
 {
 public:
@@ -43,6 +45,9 @@ private:
         _on_startup();
         CtMainWin* pWin = _create_window(true/*start_hidden*/);
         _body(pWin);
+        // run idle callbacks queued by the body (e.g. CtColumnEdit after text removal) while the window
+        // lives; bounded, as some sources stay pending
+        for (int i = 0; i < MAX_DRAIN_ITERATIONS and gtk_events_pending(); ++i) gtk_main_iteration_do(false/*blocking*/);
         pWin->force_exit() = true;
         remove_window(*pWin);
     }

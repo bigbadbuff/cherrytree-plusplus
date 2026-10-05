@@ -306,6 +306,7 @@ const char* CtMenu::_get_ui_str_menu()
     <separator/>
     <menuitem action='tree_add_node'/>
     <menuitem action='tree_add_subnode'/>
+    <menuitem action='node_from_template'/>
     <menuitem action='tree_dup_node'/>
     <menuitem action='tree_dup_node_subnodes'/>
     <menuitem action='tree_shared_node'/>

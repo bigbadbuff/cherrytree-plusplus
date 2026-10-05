@@ -12,14 +12,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
 
-from . import page_content
+from . import page_content, templates
 from .backlinks import linking_content_ids
 from .content.conventions import syntax_for_fence
 from .content.model import RICH_TEXT_SYNTAX
 from .errors import InvalidRequest
 from .safety import AppState, BackupKeeper, advance_mtime, check_write_allowed, first_new_id
 from .search import SearchHit, search_pages
-from .store.repository import NodeRecord, Repository, TreeEntry
+from .store.repository import NodeRecord, Payload, Repository, TreeEntry
 from .tree import ROOT_ID, TRASH_TAG, PageRef, Tree
 
 TRASH_TITLE = "Trash"
@@ -27,6 +27,7 @@ _ROOT_REFS = (None, "", "/", "root", 0, "0")
 
 Probe = Callable[[Path], AppState]
 WriteAction = Callable[[Repository, Tree, AppState], tuple[str, tuple[int, ...]]]
+CopyEdit = Callable[[bool, NodeRecord, Payload], tuple[NodeRecord, Payload]]
 
 
 @dataclass(frozen=True)
@@ -364,24 +365,55 @@ class Notebook:
 
         return self._write(action)
 
+    def _copy_subtree(
+        self,
+        repo: Repository,
+        tree: Tree,
+        state: AppState,
+        source_id: int,
+        parent_id: int,
+        include_children: bool = True,
+        edit: CopyEdit | None = None,
+    ) -> tuple[int, int]:
+        """Copy a page (and its subpages) to the end of ``parent_id``; returns (copy id, pages copied)."""
+        originals = [source_id, *(tree.descendants(source_id) if include_children else [])]
+        first_id, now = first_new_id(repo.max_node_id(), state), self._now()
+        new_ids = {old: first_id + index for index, old in enumerate(originals)}
+        for old in originals:
+            page = tree.page(old)
+            record = page.record.with_changes(node_id=new_ids[old], ts_creation=now, ts_lastsave=now)
+            payload = repo.payload(page.content_id)
+            if edit is not None:
+                record, payload = edit(old == source_id, record, payload)
+            if old == source_id:
+                entry = TreeEntry(record.node_id, parent_id, tree.next_sequence(parent_id), 0)
+            else:
+                entry = TreeEntry(record.node_id, new_ids[page.parent_id], page.sequence, 0)
+            repo.insert_node(record, payload, entry)
+        return new_ids[source_id], len(originals)
+
     def duplicate_page(self, ref: PageRef, new_parent: PageRef | None = None, include_children: bool = True) -> WriteResult:
         def action(repo: Repository, tree: Tree, state: AppState) -> tuple[str, tuple[int, ...]]:
             source = tree.page(tree.resolve(ref))
             parent_id = source.parent_id if new_parent is None else self._parent(tree, new_parent)
-            originals = [source.node_id, *(tree.descendants(source.node_id) if include_children else [])]
-            first_id, now = first_new_id(repo.max_node_id(), state), self._now()
-            new_ids = {old: first_id + index for index, old in enumerate(originals)}
-            for old in originals:
-                page = tree.page(old)
-                record = page.record.with_changes(node_id=new_ids[old], ts_creation=now, ts_lastsave=now)
-                if old == source.node_id:
-                    entry = TreeEntry(record.node_id, parent_id, tree.next_sequence(parent_id), 0)
-                else:
-                    entry = TreeEntry(record.node_id, new_ids[page.parent_id], page.sequence, 0)
-                repo.insert_node(record, repo.payload(page.content_id), entry)
-            copy_id = new_ids[source.node_id]
+            copy_id, count = self._copy_subtree(repo, tree, state, source.node_id, parent_id, include_children)
+            return f"Duplicated [{source.node_id}] as [{copy_id}] ({_plural(count, 'page')} copied).", (copy_id,)
+
+        return self._write(action)
+
+    def create_page_from_template(self, template: PageRef, title: str, parent: PageRef | None = None) -> WriteResult:
+        values = templates.default_values(_title(title), self._clock())
+
+        def fill_page(is_top: bool, record: NodeRecord, payload: Payload) -> tuple[NodeRecord, Payload]:
+            name = values["title"] if is_top else templates.fill(record.name, values)
+            content = templates.fill_content(page_content.decode_payload(record, payload), values)
+            return record.with_changes(name=name), page_content.to_payload(record, content)
+
+        def action(repo: Repository, tree: Tree, state: AppState) -> tuple[str, tuple[int, ...]]:
+            source_id = tree.resolve(template)
+            copy_id, count = self._copy_subtree(repo, tree, state, source_id, self._parent(tree, parent), edit=fill_page)
             return (
-                f"Duplicated [{source.node_id}] as [{copy_id}] ({_plural(len(originals), 'page')} copied).",
+                f"Created [{copy_id}] {values['title']!r} from template [{source_id}] ({_plural(count, 'page')}).",
                 (copy_id,),
             )
 

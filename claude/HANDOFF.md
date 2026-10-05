@@ -25,7 +25,7 @@ survives a full context window.
 - `build.sh` fixed for Apple Silicon Homebrew (icu4c/curl pkg-config paths, `LIBRARY_PATH`).
   `./build.sh release notests` builds CherryTree 1.7.2 → `build/cherrytree`.
 - MCP server `claude/mcp-server/` (Python 3.12, `mcp` SDK 2.x `MCPServer`, `markdown-it-py`, uv):
-  17 tools, 139 tests, ~94% coverage, e2e tests that export through a real CherryTree binary.
+  18 tools, 141 tests, ~94% coverage, e2e tests that export through a real CherryTree binary.
   Module map: `claude/mcp-server/README.md`. Setup and tool table: `claude/README.md`.
 - Verified live: with the notebook open in CherryTree 1.7.0, a write through the installed server
   was picked up by the app ("Document was Reloaded After External Update") and rendered correctly.
@@ -69,8 +69,13 @@ survives a full context window.
 - [x] **Backlinks** (`src/ct/ct_backlinks.{h,cc}`: lookup + `CtActions::node_backlinks` dialog, Tree menu,
   Ctrl+Alt+B; MCP `list_backlinks` in `claude/mcp-server/.../backlinks.py`). Tests in
   `tests/tests_backlinks.cpp` (mutation-checked) and the Python suite. Not yet seen in the GUI.
-- [ ] **Next Notion features** (see ROADMAP): templates, `[[` page-link autocomplete, "Linked from"
-  strip under the node header.
+- [x] **Templates** (`src/ct/ct_templates.{h,cc}`, Tree menu + `/` menu; MCP `create_page_from_template`
+  in `templates.py`). Fixture `tests/data_данные/templates_fixture.ctb`. Also fixed two hidden-window
+  robustness issues found by the tests (null GDK window in `cursor_and_tooltips_reset`; test harness
+  now drains idle callbacks). Changing the tree selection inside a never-shown window can hang GTK's
+  text layout, so tests avoid that. Not yet seen in the GUI.
+- [ ] **Next Notion features** (see ROADMAP): `[[` page-link autocomplete, "Linked from" strip under
+  the node header, page properties.
 - [ ] **Retire the stock 1.7.0 app** once the user agrees (ask first; it is their install). It
   lacks the reload-race fix. Opening `.ctb` files by double-click in Finder still goes to the stock
   app; the launcher does not handle Finder "open document" events yet.
@@ -98,18 +103,21 @@ high-value app features next).
 
 ## C++ tests (macOS)
 
+Run `claude/run-cpp-tests.sh` (all four suites; or pass suite names). It configures `build-tests/`,
+builds, runs, and afterwards points the generated `config.h` back at `build/`.
+
+**Trap:** CMake writes `config.h` (it records the build dir) into the *source tree*, so `build/` and
+`build-tests/` overwrite each other's copy. Tests built against `build/`'s copy fail
+`get_cherrytree_datadir`/exports; an app built against `build-tests/`'s copy cannot find its data.
+Always use the script for tests and `./build.sh` (which re-runs cmake) for the app.
+
 Fork tests live in target `run_tests_plusplus` (`tests/tests_plusplus_app.h` gives a hidden-window
-harness; text-buffer tests must call `gtk_init_check` + `Gtk::Main::init_gtkmm_internals`).
+harness that drains idle callbacks before closing; text-buffer tests must call `gtk_init_check` +
+`Gtk::Main::init_gtkmm_internals`). Don't change the tree selection into a different subtree inside
+the hidden window: GTK's text layout can loop forever there (never realized).
 
-`build.sh` disables tests on macOS, so use a separate build dir:
-
-```bash
-git submodule update --init tests/googletest
-PKG_CONFIG_PATH=/opt/homebrew/opt/icu4c/lib/pkgconfig:/opt/homebrew/opt/curl/lib/pkgconfig \
-  cmake -S . -B build-tests -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DINSTALL_GTEST=''
-LIBRARY_PATH=/opt/homebrew/lib ninja -C build-tests run_tests_plusplus run_tests_with_x_2
-(cd build-tests && ./run_tests_plusplus && ./run_tests_with_x_2)
-```
+Status: `run_tests_plusplus` 20/20, `run_tests_no_x` 88/88, `run_tests_with_x_1` 7/7,
+`run_tests_with_x_2` 20/20.
 
 ## CherryTree facts you would otherwise re-derive (all verified)
 

@@ -41,7 +41,7 @@ def test_tools_are_registered_with_read_only_hints(tmp_path):
 
     tools = {tool.name: tool for tool in asyncio.run(run())}
 
-    assert len(tools) == 17
+    assert len(tools) == 18
     assert {name for name, tool in tools.items() if tool.annotations.read_only_hint} == READ_TOOLS
     assert tools["trash_pages"].annotations.destructive_hint is True
 
@@ -159,7 +159,7 @@ def test_entry_point_serves_over_stdio(tmp_path):
 
     count, info = asyncio.run(run())
 
-    assert count == 17
+    assert count == 18
     assert f"notebook: {document.resolve()}" in info and document.exists()
 
 

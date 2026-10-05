@@ -31,8 +31,8 @@ Effort: **S** = a day or less, **M** = a few days, **L** = a week+, **XL** = arc
 2. ~~**Backlinks**~~ **done as a dialog** (`ct_backlinks.cc`, Tree → Show Backlinks…, Ctrl+Alt+B;
    MCP tool `list_backlinks`). Follow-up: an always-visible "Linked from" strip under the node header.
 3. **`[[` page mention autocomplete** (M): type `[[` → fuzzy node picker → inserts a node link.
-4. **Templates** (S): a "Templates" node; *New node from template* duplicates the chosen subtree
-   (with `{{date}}` / `{{title}}` substitution).
+4. ~~**Templates**~~ **done** (`ct_templates.cc`, Tree → New Node from Template…, also in the `/`
+   menu; MCP `create_page_from_template`).
 5. **Callout blocks** (M): coloured, icon-prefixed box. Likely a new anchored widget type modelled
    on `CtCodebox`; needs a storage representation in all four formats (or a styled 1×1 table).
 6. **Page properties** (L): typed properties per node (select, multi-select, date, number,
