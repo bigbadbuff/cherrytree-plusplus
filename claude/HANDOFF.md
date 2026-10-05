@@ -48,15 +48,19 @@ survives a full context window.
 
 ## Work queue (in priority order)
 
-- [ ] **Close the last reload race in the app (C++, small)**: if CherryTree saves (autosave or
-  Ctrl+S) after Claude writes but before its 5-second mtime poll, it records the new mtime and never
-  reloads, keeping a stale in-memory copy that can later overwrite Claude's pages. Fix in the fork:
-  before saving (`ct_storage_control.cc` save path / `CtMainWin` autosave in `ct_main_win_file.cc`),
-  if `fs::getmtime(file) > _mod_time`, run the existing reload flow first. Add a regression test
-  under `tests/` if feasible, rebuild, and live-test with the MCP server.
-- [ ] **L12 lossy round trips** (`to_markdown.py`): bullet glyph variety (`→ ⇒ ◇` → `•`), `1)` →
-  `1.`, renumbering, `~~~` rules normalised to 33 `~`. Only affects `replace_content` rewrites;
-  targeted edits are lossless. Fix by preserving the original marker text, or document.
+- [x] **Close the last reload race in the app (C++)**: `CtStorageControl::save` now keeps the
+  recorded mod time behind the file when it changed on disk since load/last save, so the
+  "Reload After External Update" sentinel still reloads after the app's own (partial) save.
+  Covered by `tests/tests_external_update.cpp` (target `run_tests_external_update`); upstream's
+  `run_tests_with_x_2` read/write suite still passes. Only builds of this repo have the fix.
+- [ ] **Make this repo's build the app the user launches**: `/Applications/CherryTree.app` is the
+  stock 1.7.0 without our fixes. Create a small `CherryTree++.app` launcher bundle (Info.plist +
+  script running `build/cherrytree`, icon from `icons/`) via a script in `claude/macos/`, install it
+  to `~/Applications`, and copy the auto-reload setting into `~/.config/cherrytree/config.cfg`
+  (the self-built binary's config). Then retire the 1.7.0 app with the user's OK.
+- [x] **L12 lossy round trips**: documented, not fixed. `replace_content` normalises custom bullet
+  glyphs, `1)`-style numbering and divider lengths to CherryTree's defaults (stated in the tool
+  description); targeted edits are lossless. Revisit only if the user customises these.
 
 ### Fixed (2026-10-05, with regression tests)
 
@@ -75,6 +79,18 @@ survives a full context window.
 
 After the queue: pick from `claude/ROADMAP.md` with the user (slash menu, backlinks and templates
 are the cheapest high-value app features).
+
+## C++ tests (macOS)
+
+`build.sh` disables tests on macOS, so use a separate build dir:
+
+```bash
+git submodule update --init tests/googletest
+PKG_CONFIG_PATH=/opt/homebrew/opt/icu4c/lib/pkgconfig:/opt/homebrew/opt/curl/lib/pkgconfig \
+  cmake -S . -B build-tests -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DINSTALL_GTEST=''
+LIBRARY_PATH=/opt/homebrew/lib ninja -C build-tests run_tests_external_update run_tests_with_x_2
+(cd build-tests && ./run_tests_external_update && ./run_tests_with_x_2)
+```
 
 ## CherryTree facts you would otherwise re-derive (all verified)
 

@@ -360,6 +360,15 @@ bool CtStorageControl::try_reopen(Glib::ustring& error)
 
 bool CtStorageControl::save(bool need_vacuum, Glib::ustring& error)
 {
+    // Another program (e.g. the Claude MCP server) may have written to the file since we loaded or
+    // last saved it. We only write the nodes changed here, so its changes to other nodes survive,
+    // but we must not record the post-save mod time: the mod time sentinel would then never notice
+    // the outside change and we would keep, and later write back, a stale copy of those nodes.
+    const time_t mod_time_before = _mod_time;
+    const bool externally_modified = mod_time_before > 0 and fs::getmtime(_file_path) > mod_time_before;
+    if (externally_modified) {
+        spdlog::debug("{} was modified externally since {}, reload pending after save", _file_path.string(), mod_time_before);
+    }
     _mod_time = 0;
     _pCtMainWin->get_status_bar().push(_("Writing to Disk..."));
     while (gtk_events_pending()) gtk_main_iteration();
@@ -377,10 +386,13 @@ bool CtStorageControl::save(bool need_vacuum, Glib::ustring& error)
     const bool need_main_backup = CtDocType::MultiFile != doc_type and _pCtConfig->backupCopy and _pCtConfig->backupNum > 0;
     const bool need_encrypt = _file_path != _extracted_file_path;
 
-    auto on_scope_exit = scope_guard([this, need_encrypt](void*) {
+    auto on_scope_exit = scope_guard([this, need_encrypt, externally_modified, mod_time_before](void*) {
         _pCtMainWin->get_status_bar().pop();
         if (not need_encrypt) {
-            _mod_time = fs::getmtime(_file_path);
+            const time_t mod_time_after = fs::getmtime(_file_path);
+            // stay strictly behind the file (but positive) so the sentinel reloads the outside changes
+            _mod_time = externally_modified ? std::max<time_t>(1, std::min(mod_time_before, mod_time_after - 1))
+                                            : mod_time_after;
         }
     });
 
