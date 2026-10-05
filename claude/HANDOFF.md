@@ -34,7 +34,8 @@ survives a full context window.
 ## State of the user's Mac (forrestbuff)
 
 - Checkout: `~/Desktop/cherrytree`. Homebrew build deps installed. Built binary: `build/cherrytree`.
-- Installed app: `/Applications/CherryTree.app` = 1.7.0 (dehesselle macOS build; no 1.7.2 .app exists).
+- Apps: `/Applications/CherryTree.app` = stock 1.7.0 (dehesselle build, no fork fixes);
+  `~/Applications/CherryTree++.app` = launcher for this repo's `build/cherrytree` (1.7.2 + fixes).
 - Notebook: `~/Documents/CherryTree/Notes.ctb` with page [1] "Welcome" (bookmarked) and a test page
   [101] "Live edit test" (user may delete it).
 - CherryTree config `~/Library/Application Support/net.giuspen.CherryTree/cherrytree/config.cfg`:
@@ -53,11 +54,13 @@ survives a full context window.
   "Reload After External Update" sentinel still reloads after the app's own (partial) save.
   Covered by `tests/tests_external_update.cpp` (target `run_tests_external_update`); upstream's
   `run_tests_with_x_2` read/write suite still passes. Only builds of this repo have the fix.
-- [ ] **Make this repo's build the app the user launches**: `/Applications/CherryTree.app` is the
-  stock 1.7.0 without our fixes. Create a small `CherryTree++.app` launcher bundle (Info.plist +
-  script running `build/cherrytree`, icon from `icons/`) via a script in `claude/macos/`, install it
-  to `~/Applications`, and copy the auto-reload setting into `~/.config/cherrytree/config.cfg`
-  (the self-built binary's config). Then retire the 1.7.0 app with the user's OK.
+- [x] **CherryTree++.app launcher**: `claude/macos/make-app.sh` builds a launcher bundle for
+  `build/cherrytree` (icon from `icons/cherrytree.svg`, settings shared with the stock app via
+  `XDG_CONFIG_HOME`); `claude/macos/test-make-app.sh` checks it. Installed at
+  `~/Applications/CherryTree++.app` and live-tested (MCP write → app reloaded).
+- [ ] **Retire the stock 1.7.0 app** once the user agrees (ask first; it is their install). It
+  lacks the reload-race fix. Opening `.ctb` files by double-click in Finder still goes to the stock
+  app; the launcher does not handle Finder "open document" events yet.
 - [x] **L12 lossy round trips**: documented, not fixed. `replace_content` normalises custom bullet
   glyphs, `1)`-style numbering and divider lengths to CherryTree's defaults (stated in the tool
   description); targeted edits are lossless. Revisit only if the user customises these.

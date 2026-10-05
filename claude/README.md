@@ -30,6 +30,16 @@ brew install cmake ninja pkg-config adwaita-icon-theme fmt gspell gtkmm3 gtksour
 ./build/cherrytree
 ```
 
+Then create a launchable **CherryTree++.app** for that build (shows up in Spotlight/Launchpad; it
+shares settings with the stock CherryTree.app):
+
+```bash
+claude/macos/make-app.sh            # installs ~/Applications/CherryTree++.app
+claude/macos/test-make-app.sh       # optional self-check
+```
+
+Only this build has the fork's fixes, so prefer CherryTree++ over the stock app.
+
 In CherryTree, turn on **Preferences → Miscellaneous → Reload After External Update to CT\* File**.
 Without it the server refuses to write while the notebook is open, because CherryTree would
 overwrite Claude's edits on its next save.
