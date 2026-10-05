@@ -86,3 +86,21 @@ def test_backup_is_taken_once_per_document_and_pruned(sample_ctb, tmp_path):
         with Repository.open(sample_ctb) as repo:
             fresh.ensure(sample_ctb, repo)
     assert len(list((tmp_path / "backups").glob("*.ctb"))) == 2
+
+
+def test_only_the_cherrytree_executable_counts_not_paths_containing_the_word(tmp_path):
+    run = _fake_run({"lsof": "123\n", "ps": "/Users/me/cherrytree/claude/mcp-server/.venv/bin/python3\n"})
+
+    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "true"), run=run)
+
+    assert state.open_in_app is False
+
+
+def test_this_process_is_never_mistaken_for_the_app(tmp_path):
+    import os
+
+    run = _fake_run({"lsof": f"{os.getpid()}\n", "ps": "CherryTree\n"})
+
+    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "true"), run=run)
+
+    assert state.open_in_app is False

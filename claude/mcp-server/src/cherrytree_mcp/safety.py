@@ -54,12 +54,15 @@ def reload_enabled(config_path: Path) -> bool:
 
 def _pids_holding(path: Path, run: Runner) -> list[int]:
     result = run(["lsof", "-t", "--", str(path)], capture_output=True, text=True, timeout=COMMAND_TIMEOUT_SECONDS)
-    return [int(token) for token in result.stdout.split() if token.isdigit()]
+    own_pid = os.getpid()
+    return [int(token) for token in result.stdout.split() if token.isdigit() and int(token) != own_pid]
 
 
 def _is_cherrytree(pid: int, run: Runner) -> bool:
     result = run(["ps", "-p", str(pid), "-o", "comm="], capture_output=True, text=True, timeout=COMMAND_TIMEOUT_SECONDS)
-    return "cherrytree" in result.stdout.lower()
+    # comm is a full executable path on macOS and a bare name on Linux; match the name only,
+    # so e.g. a python living under a "cherrytree" checkout is not mistaken for the app
+    return Path(result.stdout.strip()).name.lower() == "cherrytree"
 
 
 def detect_app_state(path: Path, config_path: Path, run: Runner = subprocess.run) -> AppState:

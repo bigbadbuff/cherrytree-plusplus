@@ -142,8 +142,10 @@ class Notebook:
     # ------------------------------------------------------------ reads
 
     def info(self) -> NotebookInfo:
+        app_state = self._probe(self.path)  # probe before opening, so our own handle is not in the way
+
         def action(repo: Repository, tree: Tree) -> NotebookInfo:
-            return NotebookInfo(self.path, len(tree.pages()), len(repo.bookmarks()), self._probe(self.path))
+            return NotebookInfo(self.path, len(tree.pages()), len(repo.bookmarks()), app_state)
 
         return self._read(action)
 
