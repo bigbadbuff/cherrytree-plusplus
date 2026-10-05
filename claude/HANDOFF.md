@@ -25,10 +25,11 @@ survives a full context window.
 - `build.sh` fixed for Apple Silicon Homebrew (icu4c/curl pkg-config paths, `LIBRARY_PATH`).
   `./build.sh release notests` builds CherryTree 1.7.2 → `build/cherrytree`.
 - MCP server `claude/mcp-server/` (Python 3.12, `mcp` SDK 2.x `MCPServer`, `markdown-it-py`, uv):
-  16 tools, 116 tests, ~94% coverage, e2e tests that export through a real CherryTree binary.
+  16 tools, 136 tests, ~94% coverage, e2e tests that export through a real CherryTree binary.
   Module map: `claude/mcp-server/README.md`. Setup and tool table: `claude/README.md`.
 - Verified live: with the notebook open in CherryTree 1.7.0, a write through the installed server
   was picked up by the app ("Document was Reloaded After External Update") and rendered correctly.
+- Code review findings H1–H5, M6–M10, L11 fixed with regression tests (PR "fix/review-findings").
 
 ## State of the user's Mac (forrestbuff)
 
@@ -47,40 +48,30 @@ survives a full context window.
 
 ## Work queue (in priority order)
 
-Code review of the MCP server (2026-10-05) found no file-corrupting bugs. These issues remain; each
-fix needs a failing test first. Tick them off here as they land.
+- [ ] **Close the last reload race in the app (C++, small)**: if CherryTree saves (autosave or
+  Ctrl+S) after Claude writes but before its 5-second mtime poll, it records the new mtime and never
+  reloads, keeping a stale in-memory copy that can later overwrite Claude's pages. Fix in the fork:
+  before saving (`ct_storage_control.cc` save path / `CtMainWin` autosave in `ct_main_win_file.cc`),
+  if `fs::getmtime(file) > _mod_time`, run the existing reload flow first. Add a regression test
+  under `tests/` if feasible, rebuild, and live-test with the MCP server.
+- [ ] **L12 lossy round trips** (`to_markdown.py`): bullet glyph variety (`→ ⇒ ◇` → `•`), `1)` →
+  `1.`, renumbering, `~~~` rules normalised to 33 `~`. Only affects `replace_content` rewrites;
+  targeted edits are lossless. Fix by preserving the original marker text, or document.
 
-- [ ] **H1 `\r` shifts widgets** (`content/ctxml.py`): CherryTree stores `\r` as `&#13;`; we write a raw
-  `\r`, which XML parsers normalise away on load, shifting every later widget offset by one.
-  Fix: emit `&#13;` for `\r` in node and table XML.
-- [ ] **H2 leading whitespace lost on replace_content** (`from_markdown.py`/`to_markdown.py`): a
-  4-space-indented line becomes a code block (embedded image placeholders inside it are dropped);
-  tabs/short indents are stripped. Fix: disable markdown-it `code` rule; preserve leading
-  whitespace from source lines (via `token.map`) and emit it in `to_markdown`.
-- [ ] **H3 plain-page insert merges lines** (`content/editing.py` `insert_after_line_plain`):
-  `("a\nb", "a", "X")` → `"a\nXb"`. Fix: ensure inserted text ends with `\n`.
-- [ ] **H4 reload race** (`notebook.py`/`safety.py`): CherryTree compares mtimes in whole seconds
-  and resets its stored mtime after its own saves; a write in the same second as an app save is
-  never reloaded. Fix: after commit, bump file mtime to `max(now, old_mtime + 1s)`; tool result and
-  instructions should say unsaved app edits to the same page win if the user saves.
-- [ ] **H5 backup pruning** (`safety.py` `BackupKeeper._prune`): glob `stem-*` also matches other
-  notebooks (`notes` vs `notes-work`) and can delete the just-made backup. Fix: one backup
-  subfolder per notebook (hash of resolved path); never prune the newest.
-- [ ] **M6 lines after a list/quote get absorbed** (`from_markdown.py`): `"• milk\nNext"` round-trips
-  to an indented continuation; `"> q\nplain"` puts `indent=1` on `plain` (lazy continuation).
-- [ ] **M7 code fence too short** (`to_markdown.py` `_render_codebox`): count backtick runs
-  anywhere, not just at column 0.
-- [ ] **M8 trashing a page and its subpage flattens them** (`notebook.py` `trash_pages`/`move_pages`):
-  drop requested pages whose ancestor is also requested.
-- [ ] **M9 safety fails open** (`safety.py`): if `lsof` is missing/times out, writes proceed with
-  id gap 1. Keep the 100 gap when detection is unavailable. Also check `~/.config/cherrytree/config.cfg`
-  (used by a self-built binary) besides the .app config; require reload on in every config that exists.
-- [ ] **M10 unreadable errors** (`server.py`, `store/repository.py`): make `NotACherryTreeDocument`
-  a `NotebookError`; open SQLite with `mode=rw` URI so a missing file is not created as 0 bytes;
-  strip lone surrogates in `sanitize_text`; map `sqlite3.Error`/`OSError` to `ToolError`.
-- [ ] **L11 search loads image BLOBs** (`repository.payloads`): select `NULL` for `png` in search.
-- [ ] **L12 lossy round trips** (`to_markdown.py`): bullet glyph variety, `1)` vs `1.`, numbering,
-  `~~~` rules are normalised. Acceptable; document or preserve.
+### Fixed (2026-10-05, with regression tests)
+
+- [x] H1 `\r` written raw → now `&#13;` (widget offsets no longer shift)
+- [x] H2 indented lines became code blocks / lost indentation → code rule off, indentation restored
+- [x] H3 plain-page insert merged lines → inserted text always ends its line
+- [x] H4 same-second write never reloaded → mtime bumped past previous value after every write
+- [x] H5 backup pruning across similarly named notebooks → one backup folder per notebook
+- [x] M6 lazy continuation lines absorbed into lists/quotes
+- [x] M7 code fence shorter than an inner backtick run
+- [x] M8 trashing/moving a page with its subpage flattened the subtree
+- [x] M9 safety failed open without lsof → fails closed (gap + reload required); all configs checked
+- [x] M10 unreadable errors → `NotACherryTreeDocument` is a `NotebookError`, `mode=rw` open,
+  surrogates stripped, `sqlite3.Error`/`OSError` mapped to tool errors
+- [x] L11 search loaded image BLOBs
 
 After the queue: pick from `claude/ROADMAP.md` with the user (slash menu, backlinks and templates
 are the cheapest high-value app features).

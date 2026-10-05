@@ -16,7 +16,7 @@ from . import page_content
 from .content.conventions import syntax_for_fence
 from .content.model import RICH_TEXT_SYNTAX
 from .errors import InvalidRequest
-from .safety import AppState, BackupKeeper, check_write_allowed, first_new_id
+from .safety import AppState, BackupKeeper, advance_mtime, check_write_allowed, first_new_id
 from .search import SearchHit, search_pages
 from .store.repository import NodeRecord, Repository, TreeEntry
 from .tree import ROOT_ID, TRASH_TAG, PageRef, Tree
@@ -122,11 +122,16 @@ class Notebook:
         state = self._probe(self.path)
         check_write_allowed(state)
         with Repository.open(self.path) as repo:
+            previous_mtime = self.path.stat().st_mtime
             self._backups.ensure(self.path, repo)
             with repo.transaction():
                 message, node_ids = action(repo, Tree(repo.nodes(), repo.tree()), state)
+        advance_mtime(self.path, previous_mtime, self._clock())
         if state.open_in_app:
-            message += " CherryTree has this notebook open and will reload it within about 5 seconds."
+            message += (
+                " CherryTree has this notebook open and reloads it within about 5 seconds; if the user has"
+                " unsaved edits to the same page there, saving them in CherryTree overrides this change."
+            )
         return WriteResult(message, node_ids)
 
     @staticmethod
@@ -138,6 +143,11 @@ class Notebook:
         if not refs:
             raise InvalidRequest("no pages given")
         return list(dict.fromkeys(tree.resolve(ref) for ref in refs))
+
+    @staticmethod
+    def _subtree_roots(tree: Tree, node_ids: list[int]) -> list[int]:
+        """Drop pages whose ancestor is also selected: they travel with it, keeping the subtree."""
+        return [n for n in node_ids if not any(other != n and tree.is_within(n, other) for other in node_ids)]
 
     # ------------------------------------------------------------ reads
 
@@ -175,7 +185,9 @@ class Notebook:
     def search(self, query: str, limit: int = 20, include_trash: bool = False) -> list[SearchHit]:
         if not query.strip():
             raise InvalidRequest("search query is empty")
-        return self._read(lambda repo, tree: search_pages(tree, repo.payloads(), query, limit, include_trash))
+        return self._read(
+            lambda repo, tree: search_pages(tree, repo.payloads(include_blobs=False), query, limit, include_trash)
+        )
 
     def outline(self, ref: PageRef | None = None, depth: int = 2) -> list[OutlineEntry]:
         def action(_repo: Repository, tree: Tree) -> list[OutlineEntry]:
@@ -314,7 +326,7 @@ class Notebook:
     def move_pages(self, refs: Sequence[PageRef], new_parent: PageRef | None, position: int | None = None) -> WriteResult:
         def action(repo: Repository, tree: Tree, _state: AppState) -> tuple[str, tuple[int, ...]]:
             parent_id = self._parent(tree, new_parent)
-            node_ids = self._resolve_all(tree, refs)
+            node_ids = self._subtree_roots(tree, self._resolve_all(tree, refs))
             for node_id in node_ids:
                 if parent_id != ROOT_ID and tree.is_within(parent_id, node_id):
                     raise InvalidRequest(f"cannot move [{node_id}] into itself or one of its own subpages")
@@ -326,7 +338,7 @@ class Notebook:
 
     def trash_pages(self, refs: Sequence[PageRef]) -> WriteResult:
         def action(repo: Repository, tree: Tree, state: AppState) -> tuple[str, tuple[int, ...]]:
-            node_ids = self._resolve_all(tree, refs)
+            node_ids = self._subtree_roots(tree, self._resolve_all(tree, refs))
             trash_id = tree.trash_id()
             if trash_id in node_ids:
                 raise InvalidRequest("the Trash page itself cannot be trashed")

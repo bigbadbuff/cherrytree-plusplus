@@ -15,6 +15,7 @@ from typing import Iterator, Sequence
 
 from ..content.ctxml import CodeboxRow, GridRow, ImageRow
 from ..content.model import RICH_TEXT_SYNTAX
+from ..errors import NotebookError
 from .schema import TABLES
 
 BUSY_TIMEOUT_SECONDS = 10
@@ -22,9 +23,10 @@ BUSY_TIMEOUT_SECONDS = 10
 _CODEBOX_COLUMNS = "offset, justification, txt, syntax, width, height, is_width_pix, do_highl_bra, do_show_linenum"
 _GRID_COLUMNS = "offset, justification, txt, col_min, col_max"
 _IMAGE_COLUMNS = "offset, justification, anchor, png, filename, link, time"
+_IMAGE_COLUMNS_NO_BLOB = "offset, justification, anchor, NULL, filename, link, time"
 
 
-class NotACherryTreeDocument(ValueError):
+class NotACherryTreeDocument(NotebookError):
     """The file is not a CherryTree SQLite document."""
 
 
@@ -81,7 +83,15 @@ class Repository:
     @classmethod
     @contextmanager
     def open(cls, path: Path) -> Iterator[Repository]:
-        connection = sqlite3.connect(path, timeout=BUSY_TIMEOUT_SECONDS, isolation_level=None)
+        if not path.is_file():
+            raise NotACherryTreeDocument(f"notebook not found: {path}")
+        try:
+            # mode=rw: never silently create an empty file if the notebook vanished meanwhile
+            connection = sqlite3.connect(
+                path.resolve().as_uri() + "?mode=rw", uri=True, timeout=BUSY_TIMEOUT_SECONDS, isolation_level=None
+            )
+        except sqlite3.OperationalError as exc:
+            raise NotACherryTreeDocument(f"could not open notebook {path}: {exc}") from exc
         connection.text_factory = _decode_text
         try:
             try:
@@ -143,10 +153,11 @@ class Repository:
             tuple(ImageRow(*r) for r in self._widget_rows("image", _IMAGE_COLUMNS, node_id)),
         )
 
-    def payloads(self) -> dict[int, Payload]:
-        """Every node's payload in four queries (used for search)."""
+    def payloads(self, include_blobs: bool = True) -> dict[int, Payload]:
+        """Every node's payload in four queries (search passes ``include_blobs=False``)."""
         widgets: dict[str, defaultdict[int, list]] = {}
-        for table, columns in (("codebox", _CODEBOX_COLUMNS), ("grid", _GRID_COLUMNS), ("image", _IMAGE_COLUMNS)):
+        image_columns = _IMAGE_COLUMNS if include_blobs else _IMAGE_COLUMNS_NO_BLOB
+        for table, columns in (("codebox", _CODEBOX_COLUMNS), ("grid", _GRID_COLUMNS), ("image", image_columns)):
             grouped: defaultdict[int, list] = defaultdict(list)
             for row in self.connection.execute(f"SELECT node_id, {columns} FROM {table} ORDER BY node_id, offset"):
                 grouped[row[0]].append(row[1:])

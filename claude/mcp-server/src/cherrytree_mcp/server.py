@@ -72,11 +72,14 @@ def _readable_errors(func: Callable[P, R]) -> Callable[P, R]:
             return func(*args, **kwargs)
         except NotebookError as exc:
             raise ToolError(str(exc)) from exc
-        except sqlite3.OperationalError as exc:
+        except sqlite3.Error as exc:
             log.exception("SQLite error in %s", func.__name__)
             if "locked" in str(exc):
                 raise ToolError("The notebook is busy (CherryTree is saving). Retry in a moment.") from exc
-            raise ToolError(f"SQLite error: {exc}") from exc
+            raise ToolError(f"Notebook database error: {exc}") from exc
+        except OSError as exc:
+            log.exception("File error in %s", func.__name__)
+            raise ToolError(f"File error: {exc}") from exc
 
     return wrapper
 

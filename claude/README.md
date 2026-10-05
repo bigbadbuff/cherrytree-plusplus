@@ -61,8 +61,8 @@ others with *File → Save As → SQLite, Not Protected*.
 | Variable | Default | Purpose |
 |---|---|---|
 | `CHERRYTREE_DOCUMENT` | `~/Documents/CherryTree/Notes.ctb` | Notebook to work on |
-| `CHERRYTREE_CONFIG` | CherryTree's `config.cfg` | Where to read the auto-reload setting |
-| `CHERRYTREE_MCP_BACKUP_DIR` | `~/.local/share/cherrytree-mcp/backups` | Snapshots taken before the first write of each session (last 20 kept) |
+| `CHERRYTREE_CONFIG` | the .app's and `~/.config/cherrytree/` `config.cfg` | Config file(s) to check for auto-reload (`:`-separated); every existing one must enable it |
+| `CHERRYTREE_MCP_BACKUP_DIR` | `~/.local/share/cherrytree-mcp/backups` | Snapshots taken before the first write of each session (one folder per notebook, last 20 kept) |
 
 ## Tools
 
@@ -88,13 +88,16 @@ rewrites as long as the placeholder is kept.
 ## How it stays safe
 
 - Each tool call opens the notebook, does its work in one SQLite transaction, and closes it.
-- Writes are refused while CherryTree has the notebook open, unless auto-reload is on. With
-  auto-reload on, CherryTree picks up the change within about 5 seconds.
+- Writes are refused while CherryTree has the notebook open (or when that can't be checked),
+  unless auto-reload is on. With auto-reload on, CherryTree picks up the change within about
+  5 seconds; every write bumps the file's mtime so the app's whole-second check always notices.
 - While the app is open, new page ids skip 100 ahead, so they never collide with pages you created
   in the app but have not saved yet.
 - The notebook is snapshotted before the first write of every server session.
-- One rare case remains: if you are editing **the same page** in the app with unsaved changes when
-  Claude edits it, CherryTree asks whether to save. Saving keeps your version of that page.
+- Remaining edge cases (being fixed in the app, see `HANDOFF.md`): if you are editing **the same
+  page** in CherryTree with unsaved changes when Claude edits it, saving in CherryTree keeps your
+  version; and if CherryTree autosaves in the few seconds between Claude's write and its reload
+  check, it may not show Claude's change until the next reload.
 
 ## Development
 
