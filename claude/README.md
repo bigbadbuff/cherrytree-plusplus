@@ -1,4 +1,4 @@
-# CherryTree + Claude (fork of giuspen/cherrytree)
+# CherryTree++ : CherryTree + Claude (fork of giuspen/cherrytree)
 
 This fork is based on the **v1.7.2** release and adds:
 
@@ -9,13 +9,13 @@ This fork is based on the **v1.7.2** release and adds:
 - A fix that lets `./build.sh` build on Apple Silicon Homebrew.
 
 Everything fork-specific lives in `claude/` (plus small fixes), so updating to a new upstream
-release is a plain rebase.
+release is a plain rebase. Working on this repo with Claude? Start with `claude/HANDOFF.md`.
 
 ## Set up on a new Mac
 
 ```bash
-git clone https://github.com/bigbadbuff/cherrytree.git ~/Desktop/cherrytree
-cd ~/Desktop/cherrytree && git switch claude-integration
+git clone https://github.com/bigbadbuff/cherrytree-plusplus.git ~/Desktop/cherrytree
+cd ~/Desktop/cherrytree        # default branch `main` = latest release + our work
 git remote add upstream https://github.com/giuspen/cherrytree.git
 ```
 
@@ -112,6 +112,7 @@ The `e2e` tests write notebooks through the server and export them with a real C
 
 ```bash
 git fetch upstream --tags
-git rebase --onto v1.7.3 v1.7.2 claude-integration   # replace with the new tag
-./build.sh release notests
+git switch -c update-v1.7.3 main
+git rebase --onto v1.7.3 v1.7.2   # replace with the new tag; resolve conflicts, rerun all tests
+./build.sh release notests        # then PR update-v1.7.3 into main
 ```
