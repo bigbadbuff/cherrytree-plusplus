@@ -24,7 +24,7 @@
 #include "ct_dialogs.h"
 #include "ct_main_win.h"
 
-std::string CtDialogs::dialog_palette(CtMainWin* pCtMainWin)
+std::string CtDialogs::dialog_palette(CtMainWin* pCtMainWin, const std::vector<std::string>& only_action_ids)
 {
     // based on plotinus
     struct CtPaletteColumns : public Gtk::TreeModelColumnRecord
@@ -61,8 +61,19 @@ std::string CtDialogs::dialog_palette(CtMainWin* pCtMainWin)
 
     auto list_store = Gtk::ListStore::create(columns);
     int order_cnt = 0;
-    for (auto& action : pCtMainWin->get_ct_menu().get_actions()) {
-        if (action.category.empty()) continue;
+    std::vector<const CtMenuAction*> offered_actions;
+    if (only_action_ids.empty()) {
+        for (auto& action : pCtMainWin->get_ct_menu().get_actions()) {
+            if (not action.category.empty()) offered_actions.push_back(&action);
+        }
+    }
+    else {
+        for (const std::string& id : only_action_ids) {
+            if (const CtMenuAction* pAction = pCtMainWin->get_ct_menu().find_action(id)) offered_actions.push_back(pAction);
+        }
+    }
+    for (const CtMenuAction* pAction : offered_actions) {
+        const CtMenuAction& action = *pAction;
         auto iter = *list_store->append();
         iter[columns.order] = ++order_cnt;
         iter[columns.id] = action.id;

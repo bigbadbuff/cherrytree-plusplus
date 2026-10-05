@@ -52,12 +52,21 @@ survives a full context window.
 - [x] **Close the last reload race in the app (C++)**: `CtStorageControl::save` now keeps the
   recorded mod time behind the file when it changed on disk since load/last save, so the
   "Reload After External Update" sentinel still reloads after the app's own (partial) save.
-  Covered by `tests/tests_external_update.cpp` (target `run_tests_external_update`); upstream's
+  Covered by `tests/tests_external_update.cpp` (target `run_tests_plusplus`); upstream's
   `run_tests_with_x_2` read/write suite still passes. Only builds of this repo have the fix.
 - [x] **CherryTree++.app launcher**: `claude/macos/make-app.sh` builds a launcher bundle for
   `build/cherrytree` (icon from `icons/cherrytree.svg`, settings shared with the stock app via
   `XDG_CONFIG_HOME`); `claude/macos/test-make-app.sh` checks it. Installed at
   `~/Applications/CherryTree++.app` and live-tested (MCP write → app reloaded).
+- [x] **Slash command menu** (`src/ct/ct_slash_menu.{h,cc}`, hook in `CtTextView::for_event_after_key_press`,
+  palette gained an optional action-id filter, config `slash_command_menu`, preference checkbox).
+  Unit tests in `tests/tests_slash_menu.cpp` (mutation-checked). **Not yet seen in the GUI**: the user
+  declined screen access for CherryTree++, so ask them to try `/` on an empty line.
+- [ ] **Fix `fs::is_file_image` on macOS** (upstream bug, `ct_filesystem.cc`): `g_content_type_guess`
+  returns UTIs like `public.png` on macOS, so the `image/` check fails (upstream test
+  `FileSystemGroup.is_file_image` fails here; pasting image files inserts them as attachments).
+  Fix: compare `g_content_type_get_mime_type(content_type)`.
+- [ ] **Next Notion features** (see ROADMAP): backlinks panel, `[[` page-link autocomplete, templates.
 - [ ] **Retire the stock 1.7.0 app** once the user agrees (ask first; it is their install). It
   lacks the reload-race fix. Opening `.ctb` files by double-click in Finder still goes to the stock
   app; the launcher does not handle Finder "open document" events yet.
@@ -80,10 +89,13 @@ survives a full context window.
   surrogates stripped, `sqlite3.Error`/`OSError` mapped to tool errors
 - [x] L11 search loaded image BLOBs
 
-After the queue: pick from `claude/ROADMAP.md` with the user (slash menu, backlinks and templates
-are the cheapest high-value app features).
+After the queue: continue down `claude/ROADMAP.md` (backlinks and templates are the cheapest
+high-value app features next).
 
 ## C++ tests (macOS)
+
+Fork tests live in target `run_tests_plusplus` (`tests/tests_plusplus_app.h` gives a hidden-window
+harness; text-buffer tests must call `gtk_init_check` + `Gtk::Main::init_gtkmm_internals`).
 
 `build.sh` disables tests on macOS, so use a separate build dir:
 
@@ -91,8 +103,8 @@ are the cheapest high-value app features).
 git submodule update --init tests/googletest
 PKG_CONFIG_PATH=/opt/homebrew/opt/icu4c/lib/pkgconfig:/opt/homebrew/opt/curl/lib/pkgconfig \
   cmake -S . -B build-tests -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON -DINSTALL_GTEST=''
-LIBRARY_PATH=/opt/homebrew/lib ninja -C build-tests run_tests_external_update run_tests_with_x_2
-(cd build-tests && ./run_tests_external_update && ./run_tests_with_x_2)
+LIBRARY_PATH=/opt/homebrew/lib ninja -C build-tests run_tests_plusplus run_tests_with_x_2
+(cd build-tests && ./run_tests_plusplus && ./run_tests_with_x_2)
 ```
 
 ## CherryTree facts you would otherwise re-derive (all verified)
@@ -111,8 +123,8 @@ LIBRARY_PATH=/opt/homebrew/lib ninja -C build-tests run_tests_external_update ru
   and with `mod_time_sentinel=true` polls mtime every 5 s and reloads (asking to save first if dirty).
 - Headless verification: `CherryTree file.ctb -t outdir -w -s -S` (text) or `-x` (HTML) loads the
   file exactly like the GUI and exits; e2e tests use this.
-- Markdown auto-formatting while typing already exists (Preferences → Rich Text → "Enable Markdown
-  Auto Replacement (Experimental)", off by default).
+- Markdown auto-formatting while typing (`CtMarkdownFilter`) exists in the source but is compiled
+  out: `MD_AUTO_REPLACEMENT` is never defined, so there is no such preference in any build.
 
 ## Handoff protocol
 

@@ -233,7 +233,8 @@ bool exec_code_confirm_dialog(CtMainWin& ct_main_win,
 // Application About Dialog
 void dialog_about(Gtk::Window& parent, Glib::RefPtr<Gdk::Pixbuf> icon);
 
-std::string dialog_palette(CtMainWin* pCtMainWin);
+// only_action_ids: offer just these actions, in this order (empty: all actions)
+std::string dialog_palette(CtMainWin* pCtMainWin, const std::vector<std::string>& only_action_ids = {});
 gint64 dialog_selnode(CtMainWin* pCtMainWin, const Glib::ustring& entryStr);
 
 void summary_info_dialog(CtMainWin* pCtMainWin, const CtSummaryInfo& summaryInfo);

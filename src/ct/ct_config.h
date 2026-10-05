@@ -148,6 +148,7 @@ public:
 #ifdef MD_AUTO_REPLACEMENT
     bool                                        enableMdFormatting{false};
 #endif // MD_AUTO_REPLACEMENT
+    bool                                        slashCommandMenu{true}; // CherryTree++
     int                                         wrappingIndent{-14};
     bool                                        autoIndent{true};
     bool                                        codeExecConfirm{true};

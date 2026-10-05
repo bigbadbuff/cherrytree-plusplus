@@ -314,6 +314,7 @@ void CtConfig::_populate_keyfile_from_data()
 #ifdef MD_AUTO_REPLACEMENT
     _uKeyFile->set_boolean(_currentGroup, "enable_md_formatting", enableMdFormatting);
 #endif // MD_AUTO_REPLACEMENT
+    _uKeyFile->set_boolean(_currentGroup, "slash_command_menu", slashCommandMenu);
     _uKeyFile->set_integer(_currentGroup, "wrapping_indent", wrappingIndent);
     _uKeyFile->set_boolean(_currentGroup, "auto_indent", autoIndent);
     _uKeyFile->set_boolean(_currentGroup, "codexec_confirm", codeExecConfirm);
@@ -650,6 +651,7 @@ void CtConfig::_populate_data_from_keyfile()
 #ifdef MD_AUTO_REPLACEMENT
     _populate_bool_from_keyfile("enable_md_formatting", &enableMdFormatting);
 #endif // MD_AUTO_REPLACEMENT
+    _populate_bool_from_keyfile("slash_command_menu", &slashCommandMenu);
     _populate_int_from_keyfile("wrapping_indent", &wrappingIndent);
     _populate_bool_from_keyfile("auto_indent", &autoIndent);
     _populate_bool_from_keyfile("codexec_confirm", &codeExecConfirm);

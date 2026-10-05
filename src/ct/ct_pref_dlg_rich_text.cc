@@ -104,6 +104,8 @@ Gtk::Widget* CtPrefDlg::build_tab_rich_text()
     checkbutton_url_autolink->set_active(_pConfig->urlAutoLink);
     auto checkbutton_triple_click_sel_paragraph = Gtk::manage(new Gtk::CheckButton{_("At Triple Click Select the Whole Paragraph")});
     checkbutton_triple_click_sel_paragraph->set_active(_pConfig->tripleClickParagraph);
+    auto checkbutton_slash_menu = Gtk::manage(new Gtk::CheckButton{_("Typing / at Line Start Opens the Insert Menu")});
+    checkbutton_slash_menu->set_active(_pConfig->slashCommandMenu);
 #ifdef MD_AUTO_REPLACEMENT
     auto checkbutton_md_formatting = Gtk::manage(new Gtk::CheckButton{_("Enable Markdown Auto Replacement (Experimental)")});
     checkbutton_md_formatting->set_active(_pConfig->enableMdFormatting);
@@ -123,6 +125,7 @@ Gtk::Widget* CtPrefDlg::build_tab_rich_text()
     vbox_misc_text->pack_start(*hbox_misc_text, false, false);
     vbox_misc_text->pack_start(*checkbutton_url_autolink, false, false);
     vbox_misc_text->pack_start(*checkbutton_camelcase_autolink, false, false);
+    vbox_misc_text->pack_start(*checkbutton_slash_menu, false, false);
     vbox_misc_text->pack_start(*checkbutton_triple_click_sel_paragraph, false, false);
 #ifdef MD_AUTO_REPLACEMENT
     vbox_misc_text->pack_start(*checkbutton_md_formatting, false, false);
@@ -211,6 +214,9 @@ Gtk::Widget* CtPrefDlg::build_tab_rich_text()
     });
     checkbutton_triple_click_sel_paragraph->signal_toggled().connect([this, checkbutton_triple_click_sel_paragraph]{
         _pConfig->tripleClickParagraph = checkbutton_triple_click_sel_paragraph->get_active();
+    });
+    checkbutton_slash_menu->signal_toggled().connect([this, checkbutton_slash_menu]{
+        _pConfig->slashCommandMenu = checkbutton_slash_menu->get_active();
     });
 #ifdef MD_AUTO_REPLACEMENT
     checkbutton_md_formatting->signal_toggled().connect([this, checkbutton_md_formatting]{
