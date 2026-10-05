@@ -12,7 +12,7 @@ from cherrytree_mcp.safety import AppState, BackupKeeper
 from cherrytree_mcp.server import build_server
 from cherrytree_mcp.store.schema import create_empty_document
 
-READ_TOOLS = {"search", "fetch", "list_pages", "list_recent", "list_bookmarks", "get_notebook_info"}
+READ_TOOLS = {"search", "fetch", "list_pages", "list_recent", "list_bookmarks", "list_backlinks", "get_notebook_info"}
 
 
 def _server(tmp_path: Path, state: AppState = AppState(False, False, True)):
@@ -41,7 +41,7 @@ def test_tools_are_registered_with_read_only_hints(tmp_path):
 
     tools = {tool.name: tool for tool in asyncio.run(run())}
 
-    assert len(tools) == 16
+    assert len(tools) == 17
     assert {name for name, tool in tools.items() if tool.annotations.read_only_hint} == READ_TOOLS
     assert tools["trash_pages"].annotations.destructive_hint is True
 
@@ -58,11 +58,14 @@ def test_create_fetch_edit_search_through_mcp(tmp_path):
             ("fetch", {"page": "Trip"}),
             ("search", {"query": "visa"}),
             ("list_pages", {}),
+            ("append_content", {"page": "Trip", "content": "see [flights](cherrytree:node/2)"}),
+            ("list_backlinks", {"page": "Flights"}),
         ],
     )
 
     assert not any(is_error for is_error, _ in results), results
-    created, _, replaced, fetched, found, listed = (text for _, text in results)
+    created, _, replaced, fetched, found, listed, _, backlinks = (text for _, text in results)
+    assert backlinks.startswith("Pages linking to [2] Trip / Flights:\n- [1] Trip")
     assert created.startswith("Created 1 page: [1] Trip")
     assert "1 replacement" in replaced
     assert "## Packing\n- [ ] passport & visa" in fetched
@@ -156,7 +159,7 @@ def test_entry_point_serves_over_stdio(tmp_path):
 
     count, info = asyncio.run(run())
 
-    assert count == 16
+    assert count == 17
     assert f"notebook: {document.resolve()}" in info and document.exists()
 
 

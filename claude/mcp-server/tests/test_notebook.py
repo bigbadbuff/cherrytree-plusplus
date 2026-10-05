@@ -296,3 +296,29 @@ def test_missing_notebook_is_a_readable_error_and_is_not_recreated(tmp_path):
     with pytest.raises(NotebookError, match="not found"):
         notebook.fetch(1)
     assert not path.exists()
+
+
+# ------------------------------------------------------------- backlinks
+
+
+def test_backlinks_list_pages_linking_here_in_tree_order(sample):
+    # sample node 'e' (5) links to 'd' (4) and to itself; node 10 is a clone of 'e'
+    assert [p.node_id for p in sample.backlinks(4)] == [5]
+    assert sample.backlinks(5) == []
+
+
+def test_backlinks_include_links_to_clones_and_skip_trash(empty):
+    target, linker, trashed = empty.create_pages(
+        [NewPage("Target"), NewPage("Linker", "see [t](cherrytree:node/1)"), NewPage("Old", "[t](cherrytree:node/1)")]
+    ).node_ids
+
+    empty.trash_pages([trashed])
+
+    assert [p.node_id for p in empty.backlinks(target)] == [linker]
+
+
+def test_backlinks_to_a_clone_count_for_its_master(sample):
+    sample.append_content(2, "[clone](cherrytree:node/10)")
+
+    assert [p.node_id for p in sample.backlinks(5)] == [2]
+    assert [p.node_id for p in sample.backlinks(10)] == [2]

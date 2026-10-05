@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from . import page_content
+from .backlinks import linking_content_ids
 from .content.conventions import syntax_for_fence
 from .content.model import RICH_TEXT_SYNTAX
 from .errors import InvalidRequest
@@ -221,6 +222,17 @@ class Notebook:
                 seen.add(page.content_id)
                 summaries.append(PageSummary(page.node_id, tree.path_str(page.node_id), page.record.ts_lastsave))
             return summaries[:limit]
+
+        return self._read(action)
+
+    def describe(self, ref: PageRef) -> str:
+        """``[id] Parent / Page`` for a page reference."""
+        return self._read(lambda _repo, tree: tree.describe(tree.resolve(ref)))
+
+    def backlinks(self, ref: PageRef) -> list[PageSummary]:
+        def action(repo: Repository, tree: Tree) -> list[PageSummary]:
+            ids = linking_content_ids(tree, repo.payloads(include_blobs=False), tree.resolve(ref))
+            return [PageSummary(node_id, tree.path_str(node_id), tree.page(node_id).record.ts_lastsave) for node_id in ids]
 
         return self._read(action)
 

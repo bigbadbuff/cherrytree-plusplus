@@ -203,6 +203,7 @@ public:
     void bookmark_curr_node();
     void bookmark_curr_node_remove();
     void bookmarks_handle();
+    void node_backlinks(); // CherryTree++ (ct_backlinks.cc)
 
 private:
     // helpers for find actions

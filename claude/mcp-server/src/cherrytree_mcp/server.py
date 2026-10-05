@@ -40,7 +40,8 @@ This server is the user's CherryTree notebook: a tree of pages (CherryTree "node
 a numeric id, a title, optional tags, child pages and rich text content.
 
 Find and read: `search` (all words must match title/tags/content) or `list_pages` (the
-hierarchy), then `fetch` a page. Refer to pages by id whenever you have one.
+hierarchy), then `fetch` a page; `list_backlinks` shows which pages link to a page. Refer to
+pages by id whenever you have one.
 
 Edit: prefer `replace_text`, `insert_content_after` and `append_content`; they keep colours,
 underline, images and anything else Markdown cannot express. `replace_content` rewrites the
@@ -132,6 +133,11 @@ def build_server(notebook: Notebook) -> MCPServer:
     def list_bookmarks() -> str:
         """List bookmarked pages (CherryTree's favourites)."""
         return render.summaries("Bookmarked pages:", notebook.bookmarks())
+
+    @tool(READ)
+    def list_backlinks(page: PageArg) -> str:
+        """List the pages whose content links to this page (Notion-style backlinks)."""
+        return render.summaries(f"Pages linking to {notebook.describe(page)}:", notebook.backlinks(page))
 
     @tool(READ)
     def get_notebook_info() -> str:

@@ -28,8 +28,8 @@ Effort: **S** = a day or less, **M** = a few days, **L** = a week+, **XL** = arc
 1. ~~**Slash command menu**~~ **done** (`ct_slash_menu.cc`): `/` at line start opens the command
    palette restricted to insert/format actions; headings chosen on an empty line format what you
    type next. Toggle: *Preferences → Rich Text → Typing / at Line Start Opens the Insert Menu*.
-2. **Backlinks panel** (M): "Linked from" list under the node header, built by scanning rich text
-   for `link="node <id>"`. Cache per document; refresh on save.
+2. ~~**Backlinks**~~ **done as a dialog** (`ct_backlinks.cc`, Tree → Show Backlinks…, Ctrl+Alt+B;
+   MCP tool `list_backlinks`). Follow-up: an always-visible "Linked from" strip under the node header.
 3. **`[[` page mention autocomplete** (M): type `[[` → fuzzy node picker → inserts a node link.
 4. **Templates** (S): a "Templates" node; *New node from template* duplicates the chosen subtree
    (with `{{date}}` / `{{title}}` substitution).
