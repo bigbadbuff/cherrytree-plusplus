@@ -24,9 +24,9 @@ def _config(tmp_path: Path, value: str) -> Path:
 
 
 def test_reload_setting_is_read_from_cherrytree_config(tmp_path):
-    assert reload_enabled(_config(tmp_path, "true")) is True
-    assert reload_enabled(_config(tmp_path, "false")) is False
-    assert reload_enabled(tmp_path / "missing.cfg") is False
+    assert reload_enabled([_config(tmp_path, "true")]) is True
+    assert reload_enabled([_config(tmp_path, "false")]) is False
+    assert reload_enabled([tmp_path / "missing.cfg"]) is False
 
 
 def _fake_run(outputs: dict[str, str]):
@@ -42,7 +42,7 @@ def _fake_run(outputs: dict[str, str]):
 def test_detects_cherrytree_holding_the_file(tmp_path):
     run = _fake_run({"lsof": "123\n456\n", "ps": "/Applications/CherryTree.app/Contents/MacOS/CherryTree\n"})
 
-    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "true"), run=run)
+    state = detect_app_state(tmp_path / "n.ctb", [_config(tmp_path, "true")], run=run)
 
     assert state == AppState(open_in_app=True, reload_enabled=True, detection_available=True)
 
@@ -50,13 +50,13 @@ def test_detects_cherrytree_holding_the_file(tmp_path):
 def test_other_processes_holding_the_file_do_not_count(tmp_path):
     run = _fake_run({"lsof": "123\n", "ps": "/usr/bin/sqlite3\n"})
 
-    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "false"), run=run)
+    state = detect_app_state(tmp_path / "n.ctb", [_config(tmp_path, "false")], run=run)
 
     assert state.open_in_app is False
 
 
 def test_missing_lsof_is_reported_not_fatal(tmp_path):
-    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "false"), run=_fake_run({}))
+    state = detect_app_state(tmp_path / "n.ctb", [_config(tmp_path, "false")], run=_fake_run({}))
 
     assert state == AppState(open_in_app=False, reload_enabled=False, detection_available=False)
 
@@ -79,19 +79,19 @@ def test_backup_is_taken_once_per_document_and_pruned(sample_ctb, tmp_path):
     for _ in range(3):
         with Repository.open(sample_ctb) as repo:
             keeper.ensure(sample_ctb, repo)
-    assert len(list((tmp_path / "backups").glob("*.ctb"))) == 1
+    assert len(list((tmp_path / "backups").rglob("*.ctb"))) == 1
 
     for index in range(3):
         fresh = BackupKeeper(tmp_path / "backups", keep=2, clock=lambda i=index: 1_700_000_000 + i)
         with Repository.open(sample_ctb) as repo:
             fresh.ensure(sample_ctb, repo)
-    assert len(list((tmp_path / "backups").glob("*.ctb"))) == 2
+    assert len(list((tmp_path / "backups").rglob("*.ctb"))) == 2
 
 
 def test_only_the_cherrytree_executable_counts_not_paths_containing_the_word(tmp_path):
     run = _fake_run({"lsof": "123\n", "ps": "/Users/me/cherrytree/claude/mcp-server/.venv/bin/python3\n"})
 
-    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "true"), run=run)
+    state = detect_app_state(tmp_path / "n.ctb", [_config(tmp_path, "true")], run=run)
 
     assert state.open_in_app is False
 
@@ -101,6 +101,47 @@ def test_this_process_is_never_mistaken_for_the_app(tmp_path):
 
     run = _fake_run({"lsof": f"{os.getpid()}\n", "ps": "CherryTree\n"})
 
-    state = detect_app_state(tmp_path / "n.ctb", _config(tmp_path, "true"), run=run)
+    state = detect_app_state(tmp_path / "n.ctb", [_config(tmp_path, "true")], run=run)
 
     assert state.open_in_app is False
+
+
+def test_unknown_app_state_fails_closed():
+    # M9: if we cannot tell whether CherryTree has the file open, assume it might
+    unknown = AppState(open_in_app=False, reload_enabled=False, detection_available=False)
+
+    with pytest.raises(UnsafeWrite, match="could not check"):
+        check_write_allowed(unknown)
+    check_write_allowed(AppState(False, True, False))
+    assert first_new_id(10, unknown) == 110
+
+
+def test_reload_must_be_enabled_in_every_existing_config(tmp_path):
+    bundle = _config(tmp_path, "true")
+    (tmp_path / "xdg").mkdir()
+    xdg = _config(tmp_path / "xdg", "false")
+
+    assert reload_enabled([bundle, tmp_path / "missing.cfg"]) is True
+    assert reload_enabled([bundle, xdg]) is False
+    assert reload_enabled([tmp_path / "missing.cfg"]) is False
+
+
+def test_backups_of_similarly_named_notebooks_do_not_prune_each_other(sample_ctb, tmp_path):
+    # H5: "notes" must not prune "notes-work" backups (or vice versa)
+    work = tmp_path / "notes-work.ctb"
+    notes = tmp_path / "notes.ctb"
+    work.write_bytes(sample_ctb.read_bytes())
+    notes.write_bytes(sample_ctb.read_bytes())
+    backups = tmp_path / "backups"
+
+    for index in range(3):
+        keeper = BackupKeeper(backups, keep=2, clock=lambda i=index: 1_700_000_000 + i)
+        with Repository.open(work) as repo:
+            keeper.ensure(work, repo)
+    keeper = BackupKeeper(backups, keep=2, clock=lambda: 1_600_000_000)
+    with Repository.open(notes) as repo:
+        keeper.ensure(notes, repo)
+
+    notebooks = [p.parent.name.rsplit("-", 1)[0] for p in backups.rglob("*.ctb")]  # folder = <stem>-<hash>
+    assert notebooks.count("notes") == 1
+    assert notebooks.count("notes-work") == 2

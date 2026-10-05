@@ -37,9 +37,14 @@ _INLINE_CLOSERS = {"strong_close": "weight", "em_close": "style", "s_close": "st
 
 
 def _parser() -> MarkdownIt:
-    parser = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"])
+    # Indented code blocks are disabled: in CherryTree an indented line is just indented text
+    parser = MarkdownIt("commonmark", {"html": False}).enable(["table", "strikethrough"]).disable("code")
     parser.validateLink = lambda url: True  # file:// and cherrytree: links are legitimate here
     return parser
+
+
+def _leading_whitespace(line: str) -> str:
+    return line[: len(line) - len(line.lstrip(" \t"))]
 
 
 @dataclass
@@ -53,17 +58,19 @@ class _Converter:
     """Single-use, stateful walk over the markdown-it token stream."""
 
     existing_embedded: Sequence[Embedded]
+    source_lines: list[str] = field(default_factory=list)
     out: list[Block] = field(default_factory=list)
     lists: list[_ListState] = field(default_factory=list)
     marker_pending: bool = False
     quote_depth: int = 0
     heading_level: int = 0
     last_end_line: int | None = None
+    lazy_line: bool = False  # a line Markdown pulled into a list/quote although it has no marker
 
     # ------------------------------------------------------------ helpers
 
     def _line_attrs(self) -> dict[str, str]:
-        return {"indent": str(self.quote_depth)} if self.quote_depth else {}
+        return {"indent": str(self.quote_depth)} if self.quote_depth and not self.lazy_line else {}
 
     def _text(self, text: str, extra: dict[str, str] | None = None) -> None:
         self.out.append(Span(text, make_attrs({**self._line_attrs(), **(extra or {})})))
@@ -120,8 +127,30 @@ class _Converter:
             return
         self._text(alt, {"link": url_to_link(src)})
 
-    def _inline(self, children: list[Token], skip: int = 0) -> None:
+    def _source_line(self, line_map: list[int] | None, line_number: int) -> str | None:
+        if not line_map or line_map[0] + line_number >= len(self.source_lines):
+            return None
+        return self.source_lines[line_map[0] + line_number]
+
+    def _start_line(self, line_map: list[int] | None, line_number: int) -> None:
+        """Mirror the source line's own indentation instead of Markdown's normalised layout."""
+        source = self._source_line(line_map, line_number)
+        if source is None or self.heading_level:
+            return
+        indent = _leading_whitespace(source)
+        if self.lists:
+            self.lazy_line = False
+            if line_number and indent:
+                self._text(self._continuation_indent())
+        elif self.quote_depth:
+            self.lazy_line = not source.lstrip().startswith(">")
+        else:
+            self._text(indent)
+
+    def _inline(self, children: list[Token], skip: int = 0, line_map: list[int] | None = None) -> None:
         marks: list[tuple[str, str]] = []
+        line_number = 0
+        self._start_line(line_map, line_number)
         base = {"scale": f"h{self.heading_level}"} if self.heading_level else {}
         attrs = lambda: {**base, **dict(marks)}  # noqa: E731
         for index, token in enumerate(children):
@@ -131,7 +160,8 @@ class _Converter:
                 self._text(content, attrs())
             elif kind in ("softbreak", "hardbreak"):
                 self._newline()
-                self._text(self._continuation_indent())
+                line_number += 1
+                self._start_line(line_map, line_number)
             elif kind == "code_inline":
                 self._text(token.content, {**attrs(), "family": "monospace"})
             elif kind in _INLINE_MARKS:
@@ -148,6 +178,7 @@ class _Converter:
                 marks = marks[: max(i for i, (k, _) in enumerate(marks) if k == "link")]
             elif kind == "image":
                 self._embedded(token)
+        self.lazy_line = False
 
     # ------------------------------------------------------------ blocks
 
@@ -192,7 +223,7 @@ class _Converter:
             elif kind == "inline":
                 children = token.children or []
                 todo_state, skip = self._task_state(children)
-                self._leaf(token.map, lambda: self._inline(children, skip), todo_state)
+                self._leaf(token.map, lambda: self._inline(children, skip, token.map), todo_state)
             elif kind in ("fence", "code_block"):
                 codebox = Codebox(token.content.removesuffix("\n"), syntax_for_fence(token.info))
                 self._leaf(token.map, lambda: self.out.append(codebox))
@@ -225,4 +256,4 @@ def from_markdown(markdown: str, existing_embedded: Sequence[Embedded] = ()) -> 
     reference (and so keep) via ``![label](cherrytree:embedded/<n>)`` placeholders.
     """
     tokens = _parser().parse(markdown)
-    return _Converter(existing_embedded=existing_embedded).run(tokens)
+    return _Converter(existing_embedded=existing_embedded, source_lines=markdown.split("\n")).run(tokens)

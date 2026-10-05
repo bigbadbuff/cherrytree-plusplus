@@ -10,13 +10,14 @@ because it numbers its own unsaved new nodes ``max in-memory id + 1``.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Sequence
 
 from .errors import UnsafeWrite
 from .store.repository import Repository
@@ -34,22 +35,41 @@ class AppState:
     reload_enabled: bool
     detection_available: bool
 
+    @property
+    def may_be_open(self) -> bool:
+        """True when the app has the notebook open, or when we could not tell."""
+        return self.open_in_app or not self.detection_available
 
-def default_config_path() -> Path:
+    @property
+    def writes_allowed(self) -> bool:
+        return self.reload_enabled or not self.may_be_open
+
+
+def default_config_paths() -> list[Path]:
+    """Every config a CherryTree on this machine may read: the macOS .app bundle's and the XDG one
+    used by self-built binaries. ``CHERRYTREE_CONFIG`` (``os.pathsep``-separated) overrides."""
     override = os.environ.get("CHERRYTREE_CONFIG")
     if override:
-        return Path(override).expanduser()
+        return [Path(part).expanduser() for part in override.split(os.pathsep) if part]
+    xdg_home = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+    paths = [xdg_home / "cherrytree" / "config.cfg"]
     if sys.platform == "darwin":
-        return Path.home() / "Library/Application Support/net.giuspen.CherryTree/cherrytree/config.cfg"
-    return Path.home() / ".config/cherrytree/config.cfg"
+        paths.insert(0, Path.home() / "Library/Application Support/net.giuspen.CherryTree/cherrytree/config.cfg")
+    return paths
 
 
-def reload_enabled(config_path: Path) -> bool:
+def _sentinel_on(config_path: Path) -> bool:
+    lines = config_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    return any(line.strip().replace(" ", "") == "mod_time_sentinel=true" for line in lines)
+
+
+def reload_enabled(config_paths: Sequence[Path]) -> bool:
+    """Auto-reload counts as on only if every existing CherryTree config enables it."""
+    existing = [path for path in config_paths if path.is_file()]
     try:
-        lines = config_path.read_text(encoding="utf-8", errors="replace").splitlines()
+        return bool(existing) and all(_sentinel_on(path) for path in existing)
     except OSError:
         return False
-    return any(line.strip().replace(" ", "") == "mod_time_sentinel=true" for line in lines)
 
 
 def _pids_holding(path: Path, run: Runner) -> list[int]:
@@ -65,8 +85,8 @@ def _is_cherrytree(pid: int, run: Runner) -> bool:
     return Path(result.stdout.strip()).name.lower() == "cherrytree"
 
 
-def detect_app_state(path: Path, config_path: Path, run: Runner = subprocess.run) -> AppState:
-    reload = reload_enabled(config_path)
+def detect_app_state(path: Path, config_paths: Sequence[Path], run: Runner = subprocess.run) -> AppState:
+    reload = reload_enabled(config_paths)
     try:
         is_open = any(_is_cherrytree(pid, run) for pid in _pids_holding(path, run))
     except (OSError, subprocess.SubprocessError):
@@ -74,17 +94,37 @@ def detect_app_state(path: Path, config_path: Path, run: Runner = subprocess.run
     return AppState(open_in_app=is_open, reload_enabled=reload, detection_available=True)
 
 
+_ENABLE_RELOAD = (
+    "Ask the user to enable Preferences → Miscellaneous → 'Reload After External Update to CT* File' "
+    "(or close the notebook), then retry."
+)
+
+
 def check_write_allowed(state: AppState) -> None:
-    if state.open_in_app and not state.reload_enabled:
+    if state.writes_allowed:
+        return
+    if state.open_in_app:
         raise UnsafeWrite(
-            "CherryTree has this notebook open and would overwrite outside edits on its next save. "
-            "Ask the user to enable Preferences → Miscellaneous → 'Reload After External Update to CT* File' "
-            "(or close the notebook), then retry."
+            "CherryTree has this notebook open and would overwrite outside edits on its next save. " + _ENABLE_RELOAD
         )
+    raise UnsafeWrite(
+        "Writing is unsafe: could not check whether CherryTree has this notebook open (lsof failed) and "
+        "its auto-reload is off. " + _ENABLE_RELOAD
+    )
 
 
 def first_new_id(max_existing_id: int, state: AppState) -> int:
-    return max_existing_id + (ID_GAP_WHILE_OPEN if state.open_in_app else 1)
+    return max_existing_id + (ID_GAP_WHILE_OPEN if state.may_be_open else 1)
+
+
+def advance_mtime(path: Path, previous_mtime: float, now: float) -> None:
+    """Make the file's mtime (whole seconds) exceed ``previous_mtime``.
+
+    CherryTree reloads only when the mtime grows past the value it recorded at its last save,
+    comparing whole seconds, so a write landing in the same second as an app save would be missed.
+    """
+    target = max(now, int(previous_mtime) + 1)
+    os.utime(path, (target, target))
 
 
 def default_backup_dir() -> Path:
@@ -101,16 +141,22 @@ class BackupKeeper:
         self._clock = clock
         self._done: frozenset[Path] = frozenset()
 
+    def _folder(self, resolved: Path) -> Path:
+        # one folder per notebook (name + path hash) so similarly named notebooks never collide
+        digest = hashlib.sha1(str(resolved).encode("utf-8")).hexdigest()[:10]
+        return self._directory / f"{resolved.stem}-{digest}"
+
     def ensure(self, path: Path, repo: Repository) -> None:
         resolved = path.resolve()
         if resolved in self._done:
             return
+        folder = self._folder(resolved)
         stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(self._clock()))
-        repo.backup_to(self._directory / f"{resolved.stem}-{stamp}.ctb")
+        repo.backup_to(folder / f"{stamp}.ctb")
         self._done = self._done | {resolved}
-        self._prune(resolved.stem)
+        self._prune(folder)
 
-    def _prune(self, stem: str) -> None:
-        backups = sorted(self._directory.glob(f"{stem}-*.ctb"))
-        for stale in backups[: max(0, len(backups) - self._keep)]:
+    def _prune(self, folder: Path) -> None:
+        backups = sorted(folder.glob("*.ctb"))
+        for stale in backups[: max(0, len(backups) - max(1, self._keep))]:
             stale.unlink()

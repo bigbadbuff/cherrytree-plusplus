@@ -7,7 +7,7 @@ import sys
 
 from .config import ConfigError, document_path, ensure_document
 from .notebook import Notebook
-from .safety import BackupKeeper, default_backup_dir, default_config_path, detect_app_state
+from .safety import BackupKeeper, default_backup_dir, default_config_paths, detect_app_state
 from .server import build_server
 
 
@@ -18,10 +18,10 @@ def main() -> None:
         path = ensure_document(document_path())
     except ConfigError as exc:
         sys.exit(f"cherrytree-mcp: {exc}")
-    config_path = default_config_path()
+    config_paths = default_config_paths()
     notebook = Notebook(
         path,
-        probe=lambda doc: detect_app_state(doc, config_path),
+        probe=lambda doc: detect_app_state(doc, config_paths),
         backups=BackupKeeper(default_backup_dir()),
     )
     build_server(notebook).run("stdio")

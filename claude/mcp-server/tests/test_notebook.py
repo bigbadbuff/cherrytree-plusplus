@@ -91,7 +91,7 @@ def test_writes_are_refused_when_open_without_auto_reload(tmp_path):
 def test_first_write_takes_a_backup(empty, tmp_path):
     empty.create_pages([NewPage("A")])
 
-    assert len(list((tmp_path / "backups").glob("notes-*.ctb"))) == 1
+    assert len(list((tmp_path / "backups").rglob("*.ctb"))) == 1
 
 
 # ------------------------------------------------------------- content edits
@@ -256,3 +256,43 @@ def test_writes_are_visible_to_a_plain_sqlite_reader(empty):
 
     with Repository.open(empty.path) as repo:
         assert [r.name for r in repo.nodes().values()] == ["Raw check"]
+
+
+def test_writes_bump_mtime_past_the_apps_last_save(empty):
+    # H4: CherryTree reloads only if the mtime (whole seconds) grows past its own last save
+    import os
+
+    app_saved_at = int(os.stat(empty.path).st_mtime) + 5
+    os.utime(empty.path, (app_saved_at, app_saved_at))
+
+    empty.create_pages([NewPage("A")])
+
+    assert int(os.stat(empty.path).st_mtime) > app_saved_at
+
+
+def test_trashing_a_page_with_its_subpage_keeps_the_subtree(empty):
+    # M8
+    parent = empty.create_pages([NewPage("Parent")]).node_ids[0]
+    child = empty.create_pages([NewPage("Child")], parent=parent).node_ids[0]
+
+    empty.trash_pages([parent, child])
+
+    assert empty.fetch(parent).children == ((child, "Child"),)
+    assert empty.fetch(parent).path == "Trash / Parent"
+
+
+def test_search_does_not_need_image_blobs(sample):
+    with Repository.open(sample.path) as repo:
+        light = repo.payloads(include_blobs=False)
+
+    assert all(row.png is None for row in light[5].images)
+    assert [h.node_id for h in sample.search("ANSA")] == [5]
+
+
+def test_missing_notebook_is_a_readable_error_and_is_not_recreated(tmp_path):
+    path = tmp_path / "gone.ctb"
+    notebook = _notebook(path, tmp_path)
+
+    with pytest.raises(NotebookError, match="not found"):
+        notebook.fetch(1)
+    assert not path.exists()

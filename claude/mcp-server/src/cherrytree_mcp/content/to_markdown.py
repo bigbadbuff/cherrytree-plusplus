@@ -216,7 +216,7 @@ def _render_inline(segments: tuple[Span | Embedded, ...], embedded_index: dict[i
 
 
 def _render_codebox(codebox: Codebox) -> str:
-    longest = max((len(run) for run in re.findall(r"^`{3,}", codebox.text, re.MULTILINE)), default=2)
+    longest = max((len(run) for run in re.findall(r"`+", codebox.text)), default=0)
     fence = "`" * max(3, longest + 1)
     return f"{fence}{fence_for_syntax(codebox.syntax)}\n{codebox.text}\n{fence}"
 

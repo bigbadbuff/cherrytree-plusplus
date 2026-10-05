@@ -92,6 +92,6 @@ def info(details: NotebookInfo) -> str:
             f"notebook: {details.path}",
             f"pages: {details.page_count} · bookmarks: {details.bookmark_count}",
             f"app: {app} · CherryTree auto-reload after external changes: {reload}",
-            "writes: " + ("blocked until auto-reload is enabled" if state.open_in_app and not state.reload_enabled else "allowed"),
+            "writes: " + ("allowed" if state.writes_allowed else "blocked until auto-reload is enabled"),
         ]
     )
