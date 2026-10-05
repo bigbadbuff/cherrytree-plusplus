@@ -10,8 +10,7 @@ Effort: **S** = a day or less, **M** = a few days, **L** = a week+, **XL** = arc
 
 | Notion feature | CherryTree equivalent | Where |
 |---|---|---|
-| Markdown shortcuts while typing | *Preferences → Rich Text → Enable Markdown Auto Replacement (Experimental)* | `ct_text_view.cc` `CtMarkdownFilter` |
-| `* ` → bullet | Built in | `ct_text_view.cc` |
+| `* ` → bullet, `[] ` → to-do, `:: ` → ▪ | Built in | `ct_text_view.cc` `for_event_after_key_press` |
 | Toggle headings | Collapsible header anchors | `ct_text_view.cc` `expand_collapsed_anchors` |
 | Favorites | Bookmarks | `bookmark` table |
 | Synced blocks | Shared nodes (clones), node-level only | `children.master_id` |
@@ -22,9 +21,13 @@ Effort: **S** = a day or less, **M** = a few days, **L** = a week+, **XL** = arc
 
 ## App features (C++, `src/ct/`)
 
-1. **Slash command menu** (M): typing `/` at line start pops a filtered menu (heading 1–3, bullet,
-   numbered, to-do, table, codebox, image, divider, link to node, date). Reuse the command palette
-   dialog's filtering; hook the key in `CtTextView` key-press handling.
+0. **Markdown shortcuts while typing** (S–M): upstream has an experimental `CtMarkdownFilter`
+   (`**bold**` etc. as you type) but it is compiled out (`MD_AUTO_REPLACEMENT` is never defined).
+   Evaluate it: define the flag in a test build, check behaviour, then enable or replace it.
+
+1. ~~**Slash command menu**~~ **done** (`ct_slash_menu.cc`): `/` at line start opens the command
+   palette restricted to insert/format actions; headings chosen on an empty line format what you
+   type next. Toggle: *Preferences → Rich Text → Typing / at Line Start Opens the Insert Menu*.
 2. **Backlinks panel** (M): "Linked from" list under the node header, built by scanning rich text
    for `link="node <id>"`. Cache per document; refresh on save.
 3. **`[[` page mention autocomplete** (M): type `[[` → fuzzy node picker → inserts a node link.

@@ -342,6 +342,7 @@ void CtTextView::set_buffer(const Glib::RefPtr<Gtk::TextBuffer>& buffer)
 {
     // reset the column mode on the previous buffer
     _columnEdit.column_mode_off();
+    _stickyLineTag.detach();
 
     GtkTextBuffer* pGtkTextBuffer = buffer ? buffer->gobj() : NULL;
     gtk_text_view_set_buffer(GTK_TEXT_VIEW(_pGtkSourceView), pGtkTextBuffer);
@@ -418,6 +419,18 @@ void CtTextView::for_event_after_key_press(GdkEvent* event, const Glib::ustring&
     }
     auto text_buffer = get_buffer();
     bool is_code = syntaxHighlighting != CtConst::RICH_TEXT_ID and syntaxHighlighting != CtConst::PLAIN_TEXT_ID and syntaxHighlighting != CtConst::TABLE_CELL_TEXT_ID;
+
+    // CherryTree++: '/' at the start of a line opens the insert menu (deferred: it runs a dialog)
+    if (syntaxHighlighting == CtConst::RICH_TEXT_ID and
+        _pCtConfig->slashCommandMenu and
+        event->key.keyval == GDK_KEY_slash and
+        not (event->key.state & (Gdk::CONTROL_MASK | Gdk::MOD1_MASK | Gdk::META_MASK)) and
+        CtSlashMenu::is_trigger(text_buffer->get_insert()->get_iter()))
+    {
+        const int slash_offset = text_buffer->get_insert()->get_iter().get_offset() - 1;
+        Glib::signal_idle().connect_once([this, slash_offset]() { _open_slash_menu(slash_offset); });
+        return;
+    }
 
     if (not is_code and
         _pCtConfig->autoSmartQuotes and

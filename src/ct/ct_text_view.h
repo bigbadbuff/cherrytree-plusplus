@@ -25,6 +25,7 @@
 
 #include "ct_types.h"
 #include "ct_column_edit.h"
+#include "ct_slash_menu.h"
 
 #include <gtkmm/textview.h>
 #include <gspell/gspell.h>
@@ -123,6 +124,10 @@ private:
     bool _is_internal_drag{false};
     int _drag_start_offset;
     int _drag_end_offset;
+
+    // CherryTree++ "/" menu (ct_slash_menu.cc)
+    void _open_slash_menu(const int slash_offset);
+    CtStickyLineTag _stickyLineTag;
 
 #ifdef MD_AUTO_REPLACEMENT
     bool          _markdown_filter_active();

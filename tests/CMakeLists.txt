@@ -88,9 +88,12 @@ package_add_test(run_tests_with_x_2
   ../src/ct/icons.gresource.cc
 )
 
-package_add_test(run_tests_external_update
+# CherryTree++ additions
+package_add_test(run_tests_plusplus
   tests_main.cpp
+  tests_plusplus_app.cpp
   tests_external_update.cpp
+  tests_slash_menu.cpp
   ../src/ct/icons.gresource.cc
 )
 
@@ -111,4 +114,4 @@ endif()
 set_target_properties(run_tests_no_x PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 set_target_properties(run_tests_with_x_1 PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
 set_target_properties(run_tests_with_x_2 PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
-set_target_properties(run_tests_external_update PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
+set_target_properties(run_tests_plusplus PROPERTIES RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}")
