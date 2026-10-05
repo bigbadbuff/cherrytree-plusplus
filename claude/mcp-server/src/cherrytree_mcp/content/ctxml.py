@@ -12,13 +12,14 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import NamedTuple, Sequence
 
+from ..errors import NotebookError
 from .model import Block, Codebox, Embedded, RichContent, Span, Table, make_attrs, normalize
 
 XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8"?>\n'
 _INVALID_XML_CHARS = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
 
 
-class ContentFormatError(ValueError):
+class ContentFormatError(NotebookError):
     """Stored node content could not be parsed."""
 
 
