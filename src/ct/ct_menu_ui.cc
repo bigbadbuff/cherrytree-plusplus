@@ -321,6 +321,7 @@ const char* CtMenu::_get_ui_str_menu()
     <menuitem action='tree_node_prop'/>
     <menuitem action='tree_node_toggle_ro'/>
     <menuitem action='tree_node_link'/>
+    <menuitem action='node_backlinks'/>
     <menuitem action='child_nodes_inherit_syntax'/>
     <separator/>
     <menu action='BookmarksSubMenu'>

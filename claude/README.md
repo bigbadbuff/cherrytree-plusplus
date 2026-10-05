@@ -3,9 +3,9 @@
 This fork is based on the **v1.7.2** release and adds:
 
 - `mcp-server/`: an MCP server that lets Claude work with a CherryTree notebook the way it works
-  with Notion: search, read, create, edit, move, duplicate, bookmark and trash pages.
-- `ROADMAP.md`: Notion-style app features still to build (slash menu, backlinks, properties,
-  databases, …).
+  with Notion: search, read, create, edit, move, duplicate, bookmark, trash pages and list backlinks.
+- Notion-style app features: a `/` insert menu and a backlinks list (Tree → Show Backlinks…,
+  Ctrl+Alt+B). More are planned in `ROADMAP.md` (properties, databases, …).
 - A fix that lets `./build.sh` build on Apple Silicon Homebrew.
 
 Everything fork-specific lives in `claude/` (plus small fixes), so updating to a new upstream
@@ -81,6 +81,7 @@ others with *File → Save As → SQLite, Not Protected*.
 | `search` | All-words search over titles, tags, text, code boxes and tables |
 | `fetch` | A page's metadata, child pages and content as Markdown |
 | `list_pages` / `list_recent` / `list_bookmarks` | Browse the hierarchy, recent edits, favourites |
+| `list_backlinks` | Pages that link to a page (clones included) |
 | `get_notebook_info` | Notebook path, page count, whether CherryTree has it open |
 | `create_pages` | New rich text pages from Markdown, or code pages (`code_language`) |
 | `update_page` | Rename and/or retag |

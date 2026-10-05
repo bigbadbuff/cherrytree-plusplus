@@ -25,7 +25,7 @@ survives a full context window.
 - `build.sh` fixed for Apple Silicon Homebrew (icu4c/curl pkg-config paths, `LIBRARY_PATH`).
   `./build.sh release notests` builds CherryTree 1.7.2 → `build/cherrytree`.
 - MCP server `claude/mcp-server/` (Python 3.12, `mcp` SDK 2.x `MCPServer`, `markdown-it-py`, uv):
-  16 tools, 136 tests, ~94% coverage, e2e tests that export through a real CherryTree binary.
+  17 tools, 139 tests, ~94% coverage, e2e tests that export through a real CherryTree binary.
   Module map: `claude/mcp-server/README.md`. Setup and tool table: `claude/README.md`.
 - Verified live: with the notebook open in CherryTree 1.7.0, a write through the installed server
   was picked up by the app ("Document was Reloaded After External Update") and rendered correctly.
@@ -66,7 +66,11 @@ survives a full context window.
   returns UTIs like `public.png` on macOS, so the `image/` check fails (upstream test
   `FileSystemGroup.is_file_image` fails here; pasting image files inserts them as attachments).
   Fix: compare `g_content_type_get_mime_type(content_type)`.
-- [ ] **Next Notion features** (see ROADMAP): backlinks panel, `[[` page-link autocomplete, templates.
+- [x] **Backlinks** (`src/ct/ct_backlinks.{h,cc}`: lookup + `CtActions::node_backlinks` dialog, Tree menu,
+  Ctrl+Alt+B; MCP `list_backlinks` in `claude/mcp-server/.../backlinks.py`). Tests in
+  `tests/tests_backlinks.cpp` (mutation-checked) and the Python suite. Not yet seen in the GUI.
+- [ ] **Next Notion features** (see ROADMAP): templates, `[[` page-link autocomplete, "Linked from"
+  strip under the node header.
 - [ ] **Retire the stock 1.7.0 app** once the user agrees (ask first; it is their install). It
   lacks the reload-race fix. Opening `.ctb` files by double-click in Finder still goes to the stock
   app; the launcher does not handle Finder "open document" events yet.

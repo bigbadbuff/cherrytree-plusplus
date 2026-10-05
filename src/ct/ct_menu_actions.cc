@@ -353,6 +353,8 @@ void CtMenu::init_actions(CtActions* pActions)
             _("Toggle the Read Only Property of the Selected Node"), sigc::mem_fun(*pActions, &CtActions::node_toggle_read_only)});
         _actions.push_back(CtMenuAction{tree_cat, "tree_node_link", "ct_node_link", _("Cop_y Link to Node"), None,
             _("Copy Link to the Selected Node to Clipboard"), sigc::mem_fun(*pActions, &CtActions::node_link_to_clipboard)});
+        _actions.push_back(CtMenuAction{tree_cat, "node_backlinks", "ct_node_link", _("Show _Backlinks..."), KB_CONTROL+KB_ALT+"b",
+            _("List the Nodes Linking to the Selected Node"), sigc::mem_fun(*pActions, &CtActions::node_backlinks)});
         _actions.push_back(CtMenuAction{tree_cat, "child_nodes_inherit_syntax", "ct_execute", _("Children _Inherit Syntax"), None,
             _("Change the Selected Node's Children Syntax Highlighting to the Parent's Syntax Highlighting"),
             sigc::mem_fun(*pActions, &CtActions::node_inherit_syntax)});
