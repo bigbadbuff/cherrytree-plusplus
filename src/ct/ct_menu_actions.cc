@@ -329,6 +329,8 @@ void CtMenu::init_actions(CtActions* pActions)
             _("Add a Node having the same Parent of the Selected Node"), sigc::mem_fun(*pActions, &CtActions::node_add)});
         _actions.push_back(CtMenuAction{tree_cat, "tree_add_subnode", "ct_tree-subnode-add", _("Add _Subnode..."), KB_CONTROL+KB_SHIFT+"n",
             _("Add a Child Node to the Selected Node"), sigc::mem_fun(*pActions, &CtActions::node_child_add)});
+        _actions.push_back(CtMenuAction{tree_cat, "node_from_template", "ct_tree-node-dupl", _("New Node from _Template..."), None,
+            _("Add a Node Copied from a Child of the \"Templates\" Node"), sigc::mem_fun(*pActions, &CtActions::node_from_template)});
         _actions.push_back(CtMenuAction{tree_cat, "tree_dup_node", "ct_tree-node-dupl", _("_Duplicate Node"), KB_CONTROL+KB_SHIFT+"d",
             _("Duplicate the Selected Node"), sigc::mem_fun(*pActions, &CtActions::node_duplicate)});
         _actions.push_back(CtMenuAction{tree_cat, "tree_dup_node_subnodes", "ct_tree-nodesub-dupl", _("Duplicate Node _and Subnodes"), None,

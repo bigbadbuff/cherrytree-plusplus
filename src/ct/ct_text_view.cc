@@ -732,7 +732,9 @@ void CtTextView::cursor_and_tooltips_handler(int x, int y)
 void CtTextView::cursor_and_tooltips_reset()
 {
     _pCtMainWin->hovering_link_iter_offset() = -1;
-    _pTextView->get_window(Gtk::TEXT_WINDOW_TEXT)->set_cursor(Gdk::Cursor::create(Gdk::XTERM));
+    if (Glib::RefPtr<Gdk::Window> pGdkWindow = _pTextView->get_window(Gtk::TEXT_WINDOW_TEXT)) { // null until realized
+        pGdkWindow->set_cursor(Gdk::Cursor::create(Gdk::XTERM));
+    }
     _pTextView->set_tooltip_text("");
 }
 

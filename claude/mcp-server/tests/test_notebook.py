@@ -322,3 +322,38 @@ def test_backlinks_to_a_clone_count_for_its_master(sample):
 
     assert [p.node_id for p in sample.backlinks(5)] == [2]
     assert [p.node_id for p in sample.backlinks(10)] == [2]
+
+
+# ------------------------------------------------------------- templates
+
+
+def test_create_page_from_template_copies_subtree_and_fills_placeholders(empty):
+    import time
+
+    templates = empty.create_pages([NewPage("Templates")]).node_ids[0]
+    meeting = empty.create_pages(
+        [NewPage("Meeting {{date}}", "# {{title}}\nDate: {{date}} at {{time}}")], parent=templates
+    ).node_ids[0]
+    empty.create_pages([NewPage("Notes {{date}}", "Notes for **{{title}}**")], parent=meeting)
+    projects = empty.create_pages([NewPage("Projects")]).node_ids[0]
+    date = time.strftime("%Y-%m-%d", time.localtime(NOW))
+    clock = time.strftime("%H:%M", time.localtime(NOW))
+
+    result = empty.create_page_from_template("Meeting {{date}}", title="Kickoff", parent=projects)
+
+    page = empty.fetch(result.node_ids[0])
+    assert (page.title, page.path) == ("Kickoff", "Projects / Kickoff")
+    assert page.body == f"# Kickoff\nDate: {date} at {clock}"
+    child = empty.fetch(page.children[0][0])
+    assert (child.title, child.body) == (f"Notes {date}", "Notes for **Kickoff**")
+    assert "{{title}}" in empty.fetch(meeting).body  # the template itself is untouched
+
+
+def test_template_copy_defaults_to_the_top_level(empty):
+    templates = empty.create_pages([NewPage("Templates")]).node_ids[0]
+    empty.create_pages([NewPage("Daily", "Plan", code_language="text")], parent=templates)
+
+    new_id = empty.create_page_from_template("Daily", title="Monday").node_ids[0]
+
+    assert empty.fetch(new_id).path == "Monday"
+    assert empty.fetch(new_id).body == "Plan"

@@ -51,6 +51,9 @@ blocks (become code boxes) and pipe tables (become CherryTree tables). Link to a
 with [text](cherrytree:node/<id>). Images, anchors and attachments appear as
 ![label](cherrytree:embedded/<n>); keep those tokens when rewriting a page or they are dropped.
 
+Templates: pages under a top-level "Templates" page; `create_page_from_template` copies one and
+fills {{title}}, {{date}} and {{time}}.
+
 `trash_pages` moves pages under a top-level "Trash" page (restore with `move_pages`); there is
 no permanent delete. If a write is refused because CherryTree has the notebook open, tell the
 user to enable Preferences → Miscellaneous → "Reload After External Update to CT* File".
@@ -204,6 +207,16 @@ def build_server(notebook: Notebook) -> MCPServer:
     def duplicate_page(page: PageArg, new_parent: ParentArg = None, include_children: bool = True) -> str:
         """Copy a page (and by default its subpages); the copy goes under `new_parent` or next to the original."""
         return notebook.duplicate_page(page, new_parent, include_children).message
+
+    @tool(ADD)
+    def create_page_from_template(
+        template: PageArg,
+        title: Annotated[str, Field(description="Title of the new page (fills {{title}})")],
+        parent: ParentArg = None,
+    ) -> str:
+        """Create a page by copying a template page and its subpages, filling {{title}}, {{date}} and
+        {{time}} in names and text. Templates usually live under a top-level "Templates" page."""
+        return notebook.create_page_from_template(template, title, parent).message
 
     @tool(CHANGE)
     def trash_pages(pages: PagesArg) -> str:
